@@ -5,8 +5,8 @@ import Button from './components/utils/Button';
 
 // Sensors
 import AccelerometerApp from './components/sensors/Accelerometer';
-import BarometerApp from './components/sensors/Barometer';
 import MagnetometerApp from './components/sensors/Magnetometer';
+import GyroscopeApp from './components/sensors/Gyroscope';
 
 export default function App() {
   const [sensor, setSensor] = useState(null);
@@ -15,12 +15,12 @@ export default function App() {
     setSensor('accelerometer');
   };
 
-  const onBarometer = () => {
-    setSensor('barometer');
-  }
-
   const onMagnetometer = () => {
     setSensor('magnetometer');
+  }
+
+  const onGyroscope = () =>{
+    setSensor('gyroscope');
   }
 
   const onReset = () => {
@@ -29,19 +29,19 @@ export default function App() {
 
   const returnSensor = (sensor) => {
     switch (sensor) {
-      case 'accelerometer':{
+      case 'accelerometer': {
         return(
           <AccelerometerApp />
-        );
-      }
-      case 'barometer': {
-        return(
-          <BarometerApp />
         );
       }
       case 'magnetometer': {
         return(
           <MagnetometerApp />
+        )
+      }
+      case 'gyroscope': {
+        return(
+          <GyroscopeApp />
         )
       }
       default:
@@ -54,8 +54,8 @@ export default function App() {
       <View style={styles.optionsContainer}>
         <View style={styles.optionsRow}>
           <Button label="Accelerometer" onPress={onAccelerometer}/>
-          <Button label="Barometer" onPress={onBarometer}/>
           <Button label="Magnetometer" onPress={onMagnetometer}/>
+          <Button label="Gyroscope" onPress={onGyroscope}/>
         </View>
       </View>
       <View style={styles.dataContainer}>

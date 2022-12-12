@@ -1,9 +1,10 @@
 import React, { useState, useEffect} from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Accelerometer } from "expo-sensors";
+import { Gyroscope } from "expo-sensors";
+
 import DataLines from "../utils/DataLines";
 
-export default function AccelerometerApp() {
+export default function GyroscopeApp() {
     const [{ x, y, z }, setData] = useState({
         x: 0,
         y: 0,
@@ -12,13 +13,14 @@ export default function AccelerometerApp() {
 
     const [subscription, setSubscription] = useState(null);
 
-    const _slow = () => Accelerometer.setUpdateInterval(1000);
-    const _fast = () => Accelerometer.setUpdateInterval(100);
+    const _slow = () => Gyroscope.setUpdateInterval(1000);
+    const _fast = () => Gyroscope.setUpdateInterval(100);
 
     const _subscribe = () => {
         setSubscription(
-            Accelerometer.addListener(setData)
+            Gyroscope.addListener(setData)
         );
+
     };
 
     const _unsubscribe = () => {
@@ -33,16 +35,16 @@ export default function AccelerometerApp() {
 
     return (
         <View style={styles.container}>
-            {Accelerometer.isAvailableAsync() ? (
+            {Gyroscope.isAvailableAsync() ? (
                 <View style={styles.text}>
                     <View style={styles.textContainter}>
-                        <Text style={styles.text}>Accelerometer (in gs):</Text>
+                        <Text style={styles.text}>Gyroscope:</Text>
                         <Text style={styles.text}>x: {x}</Text>
                         <Text style={styles.text}>y: {y}</Text>
                         <Text style={styles.text}>z: {z}</Text>
                     </View>
                     <View style={styles.container}>
-                        <DataLines x={x} y={y} z={z} label={'Accelerometer Data (gs)'}/>
+                        <DataLines x={x} y={y} z={z} label={'Gyroscope Data (deg/sec)'}/>
                     </View>
                     <View style={styles.buttonContainer}>
                         <TouchableOpacity onPress={subscription ? _unsubscribe : _subscribe} style={styles.button}>
@@ -63,8 +65,7 @@ export default function AccelerometerApp() {
             )}
         </View>
     );
-    
-}
+};
 
 styles = StyleSheet.create({
     container: {
