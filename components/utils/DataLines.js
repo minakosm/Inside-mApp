@@ -94,7 +94,6 @@ export default class DataLines extends React.Component {
                     width={Dimensions.get('window').width}
                     height={400}
                     withShadow={false}
-                    fr
                     chartConfig={{
                         backgroundGradientFrom: "#081f41",
                         backgroundGradientTo: "#081f41",

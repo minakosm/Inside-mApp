@@ -60,7 +60,7 @@ export default function GyroscopeApp() {
                 </View>
             ) : (
                 <View style={styles.container}>
-                    <Text style={[styles.text, {color: '#fff'}]}>SENSOR ANAVAILABLE</Text>
+                    <Text style={[styles.text, {color: '#fff'}]}>SENSOR UNAVAILABLE</Text>
                 </View>
             )}
         </View>
@@ -80,6 +80,7 @@ styles = StyleSheet.create({
         flexWrap: 'wrap',
         backgroundColor: "white",
         padding: 10,
+        marginVertical: -10,
     },
     button: {
         marginHorizontal: 10,
