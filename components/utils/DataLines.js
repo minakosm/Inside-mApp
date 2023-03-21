@@ -1,8 +1,6 @@
 import * as React from 'react';
 import { Text, View, StyleSheet, Dimensions } from 'react-native'
 import { LineChart } from 'react-native-chart-kit';
-import { connect } from 'react-redux';
-import { bindActionCreators } from '@reduxjs/toolkit';
 
 // Will call <DataLines x= y= z= />
 
@@ -31,16 +29,11 @@ export default class DataLines extends React.Component {
         }
     }
 
-    updateData(len){
+    updateData(){
         this.state.xData.push(this.props.x);
         this.state.yData.push(this.props.y);
         this.state.zData.push(this.props.z);
 
-        if(this.state.xData.length === len){
-            this.state.xData.shift();
-            this.state.yData.shift();
-            this.state.zData.shift();
-        }
 
         this.findMin(this.state.xData, this.state.yData, this.state.zData)
         this.findMax(this.state.xData, this.state.yData, this.state.zData);
@@ -49,8 +42,7 @@ export default class DataLines extends React.Component {
     }
 
     render(){
-        const MAX_ARRAY_LENGTH = 30;
-        this.updateData(MAX_ARRAY_LENGTH);
+        this.updateData();
 
         return(
             <View>
@@ -92,7 +84,7 @@ export default class DataLines extends React.Component {
                         legend: ['x', 'y', 'z'],
                     }}
                     width={Dimensions.get('window').width}
-                    height={400}
+                    height={350}
                     withShadow={false}
                     chartConfig={{
                         backgroundGradientFrom: "#081f41",

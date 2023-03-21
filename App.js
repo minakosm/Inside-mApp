@@ -1,112 +1,49 @@
-import React, { useState} from 'react';
+/*
+  THIS IS THE APP FILE THAT HOLDS THE ENTIRE APPLICATION.
+  HERE WE FIND THE HIGHER ABSTRACT LAYER OF THE APP.
+  -------------------------------------------------------
+  STRUCTURE: 
+    1) SCREENS - TAB.NAVIGATION
+      i)    HOME_SCREEN - START 
+      ii)   SETTINGS
+      iii)  SENSORS - UTILS
+      iv)   MAP
+    2) ANIMATIONS
+  --------------------------------------------------------
+
+  Unpublished Work © 2023 Minas Kosmidis
+*/
+
+import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, ViewBase,} from 'react-native';
 import Button from './components/utils/Button';
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 // Sensors
 import AccelerometerApp from './components/sensors/Accelerometer';
-import MagnetometerApp from './components/sensors/Magnetometer';
 import GyroscopeApp from './components/sensors/Gyroscope';
-import DeviceMotionApp from './components/sensors/DeviceMotion';
 
 export default function App() {
-  const [sensor, setSensor] = useState(null);
-
-  const onAccelerometer = () => {
-    setSensor('accelerometer');
-  };
-
-  const onMagnetometer = () => {
-    setSensor('magnetometer');
-  }
-
-  const onGyroscope = () => {
-    setSensor('gyroscope');
-  }
-
-  const onDeviceMotion = () => {
-    setSensor('deviceMotion');
-  }
-
-  const onReset = () => {
-    setSensor(null);
-  }
-
-  const returnSensor = (sensor) => {
-    switch (sensor) {
-      case 'accelerometer': {
-        return(
-          <AccelerometerApp />
-        );
-      }
-      case 'magnetometer': {
-        return(
-          <MagnetometerApp />
-        )
-      }
-      case 'gyroscope': {
-        return(
-          <GyroscopeApp />
-        )
-      }
-      case 'deviceMotion': {
-        return(
-          <DeviceMotionApp />
-        )
-      }
-      default:
-        return;
-    }
-  };
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.optionsContainer}>
-        <View style={styles.optionsRow}>
-          <Button label="Accelerometer" onPress={onAccelerometer}/>
-          {/* <Button label="Magnetometer" onPress={onMagnetometer}/> */}
-          <Button label="Gyroscope" onPress={onGyroscope}/>
-          <Button label="DeviceMotion" onPress={onDeviceMotion} />
-        </View>
-      </View>
-      <View style={styles.dataContainer}>
-        {returnSensor(sensor)}
-      </View>
-      <View style={styles.settingsContainer}>
-        <Button label={"CLEAR"} onPress={onReset}/>
-      </View>
-      <StatusBar style="auto" />
-    </View>
+  return(
+    <AccelerometerApp />
   );
 }
 
 const styles = StyleSheet.create({
+  logo: {
+    width: "50%",
+    height: 100
+  },
+  navigationIcons: {
+    height: 23
+  },
   container: {
+    alignItems: 'center'
+  },
+  externalContainer: {
     flex: 1,
-    backgroundColor: '#25292e',
-    alignItems: 'center',
-  },
-  dataContainer: {
-    flex: 1,
-    marginVertical: 10,
-    width: "100%"
-  },
-  footerContainer: {
-    flex: 1/3,
-    alignItems: 'center',
-  },
-  optionsContainer: {
-    marginTop: 50,
-  },
-  optionsRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  optionsColumn: {
-    alignItems: 'center',
-    flexDirection: 'column'
-  },
-  settingsContainer: {
-    marginBottom: 50,
-  },  
+    backgroundColor: "#081f41"
+  }
 });

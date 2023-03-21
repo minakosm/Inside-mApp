@@ -70,8 +70,9 @@ export default function GyroscopeApp() {
 styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#8c5e78',
+        backgroundColor: '#ffe',
         alignItems: 'center',
+        marginBottom: 10,
     },
     buttonContainer: {
         alignItems: 'center',
@@ -99,8 +100,9 @@ styles = StyleSheet.create({
     text: {
         textAlign: 'center',
         flex: 1,
-        fontWeight: "bold",
         margin: 10,
+        fontWeight: 'bold',
+        fontSize: 8.5,
     },
     textContainter: {
         alignItems: 'center',
