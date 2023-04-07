@@ -5,6 +5,7 @@ import { Slider } from "@miblanchard/react-native-slider";
 import { Accelerometer } from "expo-sensors";
 import { filter, dotProduct } from "../utils/utilities";
 import { LineChart } from 'react-native-chart-kit';
+import DataLines from "../utils/DataLines";
 
 var lastSent = null;
 var hzMapping = {
@@ -63,7 +64,7 @@ export default AccelerometerApp = (props) => {
             }            
         })
         return () => Accelerometer.removeAllListeners();
-    }, [accelCount]);
+    }, [tempData]);
 
     return(
         <View>
@@ -91,7 +92,40 @@ export default AccelerometerApp = (props) => {
                     />
                 </View>
                 <View style={{marginVertical: 10}}>
-                  <Text>Data: (length = {graphData.length}) {JSON.stringify(graphData)}</Text>
+                <LineChart 
+                    data={{
+                        datasets:[
+                            {
+                                data: tempData.data.x,
+                                strokeWidth: 2,
+                                withDots: false,
+                                color: () => `rgb(255, 0, 0)`,
+                            },
+                            {
+                                data: -5, //min
+                                withDots: false,
+                            },
+                            {
+                                data: 5, //max
+                                withDots: false,
+                            }
+                        ],
+                        legend: ['accel1D'],
+                    }}
+                    width={Dimensions.get('window').width}
+                    height={350}
+                    withShadow={false}
+                    chartConfig={{
+                        backgroundGradientFrom: "#081f41",
+                        backgroundGradientTo: "#081f41",
+                        color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                    }}
+                    style={{
+                        marginHorizontal: 10,
+                    }}
+                    bezier
+                    fromZero={true}
+                />
                 </View>
             </View>
         </View>
