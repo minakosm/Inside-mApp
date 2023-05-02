@@ -23,12 +23,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 // Sensors
 import AccelerometerApp from './components/sensors/Accelerometer';
-import { pdrApp } from './components/PDR/pedestrianDeadReckoning';
+import PDRApp from './components/PDR/pedestrianDeadReckoning'; 
 import GyroscopeApp from './components/sensors/Gyroscope';
+import PedApp from './components/sensors/Pedometer';
 
 export default function App() {
   return(
-    <pdrApp />
+    <PDRApp />
   );
 }
 
