@@ -96,19 +96,11 @@ export default AccelerometerApp = (props) => {
                     data={{
                         datasets:[
                             {
-                                data: tempData.data.x,
+                                data: graphData,
                                 strokeWidth: 2,
                                 withDots: false,
                                 color: () => `rgb(255, 0, 0)`,
                             },
-                            {
-                                data: -5, //min
-                                withDots: false,
-                            },
-                            {
-                                data: 5, //max
-                                withDots: false,
-                            }
                         ],
                         legend: ['accel1D'],
                     }}
