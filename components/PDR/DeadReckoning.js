@@ -8,30 +8,25 @@ import React, { useState, useEffect, useReducer } from "react";
 import { StyleSheet, Text, View, Dimensions, AppState, TouchableOpacity } from "react-native";
 import { Slider } from "@miblanchard/react-native-slider";
 
-import { Accelerometer, Gyroscope } from "expo-sensors";
-import { filter, dotProduct } from "../utils/utilities"; 
+import { Accelerometer, Gyroscope } from "expo-sensors"; 
 import Button from "../utils/Button";
 import { isRejectedWithValue } from "@reduxjs/toolkit";
 import { LineChart } from "react-native-chart-kit";
 
-const _freqUpdate = 200;
+import { SensorData } from "../utils/SensorData";
+import * as Filter from "../utils/Filters";
+
+const _freqUpdate = 10;
 var lastSent = null ;
-var accelerometerData = {
-    x: [], 
-    y: [],
-    z: [],
-    norm: [],
-};
-var gyroscopeData = {
-    x: [], 
-    y: [],
-    z: [],
-};
+
+const accelerometerData = new SensorData();
+const gyroscopeData = new SensorData();
 
 // Start Accelerometer - Gyroscope Subscripitons
 
 export default DeadReckoningApp = () => {
     const [started, setStarted] = useState(false);
+    const [clear, setClear] = useState(true);
 
     const [accelAvail, setAccelAvail] = useState(false);
     const [gyroAvail, setGyroAvail] = useState(false);
@@ -54,6 +49,7 @@ export default DeadReckoningApp = () => {
             Gyroscope.setUpdateInterval(_freqUpdate);
 
             setStarted(true);
+            setClear(false);
 
             setAccelSub(Accelerometer.addListener(accelDataCallback));
             setGyroSub(Gyroscope.addListener(gyroDataCallback));            
@@ -74,29 +70,25 @@ export default DeadReckoningApp = () => {
         
     }
 
-    const accelDataCallback = (data) => {
-        accelerometerData.x.push(data.x);
-        accelerometerData.y.push(data.y);
-        accelerometerData.z.push(data.z);
-        accelerometerData.norm.push(Math.sqrt(
-            Math.pow(data.x, 2) +
-            Math.pow(data.y, 2) +
-            Math.pow(data.z, 2)
-        ));        
+    const accelDataCallback = (data) => { 
+        accelerometerData.pushData(data);
     }
 
     const gyroDataCallback = (data) => {
-        gyroscopeData.x.push(data.x);
-        gyroscopeData.y.push(data.y);
-        gyroscopeData.z.push(data.z);
+        gyroscopeData.pushData(data);
     }
 
     const testerFunction =  () => {
         startSubscriptions();
-        
+
         console.log(`Subscriptions called from an outside Function`);
     }
 
+    const clearScreen = () => {
+        setClear(true);
+        accelerometerData.clear();
+        gyroscopeData.clear();
+    }
 
     useEffect(() => {
         startSubscriptions();
@@ -117,6 +109,9 @@ export default DeadReckoningApp = () => {
                 <TouchableOpacity onPress={started? clearSubscriptions : testerFunction} style={styles.button}>
                                 <Text>{!started? 'START' : 'STOP'}</Text>
                 </TouchableOpacity>
+                <TouchableOpacity onPress={clearScreen} style={styles.button}>
+                                <Text>{'CLEAR'}</Text>
+                </TouchableOpacity>
             </View>
             <View style={{marginVertical: 10}}> 
                 <Text>Accelerometer Data length: {JSON.stringify(accelerometerData.x.length)}</Text>
@@ -128,12 +123,12 @@ export default DeadReckoningApp = () => {
                 <LineChart 
                     data={{
                         datasets:[
-                            {
-                                data: accelerometerData.norm,
-                                strokeWidth: 3,
-                                withDots: false,
-                                color: () => `rgb(170, 135, 100)`,
-                            },
+                            // {
+                            //     data: accelerometerData.getNorm(),
+                            //     strokeWidth: 5,
+                            //     withDots: false,
+                            //     color: () => `rgb(255, 255, 255)`,
+                            // },
                             {
                                 data: accelerometerData.x,
                                 strokeWidth: 1,
@@ -152,8 +147,26 @@ export default DeadReckoningApp = () => {
                                 withDots: false,
                                 color: () => `rgb(0, 0, 255)`,
                             },
+                            {
+                                data: Filter.low_0_hz(accelerometerData.x),
+                                strokeWidth: 6,
+                                withDots: false,
+                                color: () => `rgb(155, 0, 0)`,
+                            },
+                            {
+                                data: Filter.low_0_hz(accelerometerData.y),
+                                strokeWidth: 6,
+                                withDots: false,
+                                color: () => `rgb(0, 155, 0)`,
+                            },
+                            {
+                                data: Filter.low_0_hz(accelerometerData.z),
+                                strokeWidth: 6,
+                                withDots: false,
+                                color: () => `rgb(0, 0, 155)`,
+                            },
                         ],
-                        legend: ['Accel Norm', 'X', 'Y', 'Z']
+                        legend: ['X', 'Y', 'Z', 'Fx', 'Fy', 'Fz']
                     }}
                     width={Dimensions.get('window').width}
                     height={350}

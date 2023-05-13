@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/vector-icons": "^13.0.0",
     "@miblanchard/react-native-slider": "^2.2.0",
     "@react-navigation/bottom-tabs": "^6.5.2",
     "@react-navigation/native": "^6.1.1",
@@ -23,11 +24,12 @@
     "react-native-screens": "~3.18.0",
     "react-native-svg": "13.4.0",
     "react-native-svg-transformer": "^1.0.0",
-    "react-redux": "^8.0.5",
-    "@expo/vector-icons": "^13.0.0"
+    "react-redux": "^8.0.5"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.9"
+    "@babel/core": "^7.12.9",
+    "metro": "^0.76.4",
+    "metro-core": "^0.76.4"
   },
   "private": true
 }
