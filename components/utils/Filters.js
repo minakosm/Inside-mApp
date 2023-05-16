@@ -19,7 +19,7 @@ function filter(sensorDataProp, coeffs) {
     if (sensorDataProp.length < 3) {
         return sensorDataProp;
     }
-    let filteredData = [0, 0];
+    let filteredData = [0,0];
     for(let i=2; i<sensorDataProp.length; i++){
         filteredData[i] = coeffs.alpha[0] *
                         (sensorDataProp[i] * coeffs.beta[0] + 
@@ -35,4 +35,4 @@ const low_0_hz = (sensorDataProp) => filter(sensorDataProp, COEFFICIENTS_LOW_0_H
 const low_5_hz = (sensorDataProp) => filter(sensorDataProp, COEFFICIENTS_LOW_5_HZ);
 const high_1_hz = (sensorDataProp) => filter(sensorDataProp, COEFFICIENTS_HIGH_1_HZ);
 
-export {low_0_hz, low_5_hz, high_1_hz};
+export {low_0_hz, low_5_hz, high_1_hz, filter};

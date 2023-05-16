@@ -1,3 +1,5 @@
+import { filter } from "./Filters";
+
 class SensorData {
     constructor() {
         this.x = [];
@@ -5,10 +7,29 @@ class SensorData {
         this.z = [];
     }
 
+    setData(sensorDataObj) {
+        this.x = sensorDataObj.x;
+        this.y = sensorDataObj.y;
+        this.z = sensorDataObj.z;
+    }
+
+    getData(key) {
+        return {x:this.x, y:this.y, z: this.z};
+    }
+
     pushData(sensorDataObj) {
-        this.x.push(sensorDataObj.x);
-        this.y.push(sensorDataObj.y);
-        this.z.push(sensorDataObj.z);
+
+        if(Array.isArray(sensorDataObj.x)){
+            sensorDataObj.x.forEach(element => this.x.push(element));
+            sensorDataObj.y.forEach(element => this.y.push(element));
+            sensorDataObj.z.forEach(element => this.z.push(element));
+
+        } else {
+            this.x.push(sensorDataObj.x);
+            this.y.push(sensorDataObj.y);
+            this.z.push(sensorDataObj.z);
+        }
+
     }
 
     getNorm() {
@@ -17,6 +38,7 @@ class SensorData {
             Math.pow(this.y[i], 2) + 
             Math.pow(this.z[i], 2)));
     }
+
 
     clear() {
         this.x = [];

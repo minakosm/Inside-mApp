@@ -4,7 +4,7 @@
     3) heading estimation
 */
 
-import React, { useState, useEffect, useReducer } from "react";
+import React, { useState, useEffect, useReducer, useMemo } from "react";
 import { StyleSheet, Text, View, Dimensions, AppState, TouchableOpacity } from "react-native";
 import { Slider } from "@miblanchard/react-native-slider";
 
@@ -17,9 +17,12 @@ import { SensorData } from "../utils/SensorData";
 import * as Filter from "../utils/Filters";
 
 const _freqUpdate = 10;
-var lastSent = null ;
 
 const accelerometerData = new SensorData();
+const gravAccelData = new SensorData();
+const userAccelData = new SensorData();
+
+
 const gyroscopeData = new SensorData();
 
 // Start Accelerometer - Gyroscope Subscripitons
@@ -52,25 +55,14 @@ export default DeadReckoningApp = () => {
             setClear(false);
 
             setAccelSub(Accelerometer.addListener(accelDataCallback));
-            setGyroSub(Gyroscope.addListener(gyroDataCallback));            
+            setGyroSub(Gyroscope.addListener(gyroDataCallback));     
+            
+            // processAccData();
         }
-    }
-
-    const clearSubscriptions = () => {
-        Accelerometer.removeAllListeners();
-        Gyroscope.removeAllListeners();
-        
-        setAccelSub(null);
-        setGyroSub(null);
-
-        setStarted(false);
-    };
-
-    const stepDetection = () => {
         
     }
 
-    const accelDataCallback = (data) => { 
+    const accelDataCallback = (data) => {
         accelerometerData.pushData(data);
     }
 
@@ -78,27 +70,45 @@ export default DeadReckoningApp = () => {
         gyroscopeData.pushData(data);
     }
 
-    const testerFunction =  () => {
-        startSubscriptions();
+    const stopSubscriptions = () => {
+        Accelerometer.removeAllListeners();
+        Gyroscope.removeAllListeners();
+        
+        setAccelSub(null);
+        setGyroSub(null);
 
-        console.log(`Subscriptions called from an outside Function`);
+        setStarted(false);
+        processAccData();
     }
+
 
     const clearScreen = () => {
+        Accelerometer.removeAllListeners();
+        Gyroscope.removeAllListeners();
+
+        setAccelSub(null);
+        setGyroSub(null);
         setClear(true);
+        setStarted(false);
+
         accelerometerData.clear();
+        gravAccelData.clear();
+        userAccelData.clear();
+        
         gyroscopeData.clear();
+
     }
+
 
     useEffect(() => {
         startSubscriptions();
-        return () => clearSubscriptions();
+        return () => clearScreen();
     }, []);
 
     return (
         <View style={{marginVertical: 40, 
                       alignItems: 'center'}}>
-            <Text>PRD APP</Text>
+            <Text>PDR APP</Text>
             <View style={{marginVertical: 10,
                           alignItems: 'center'}}>
                 <Text>started: {JSON.stringify(started)}</Text>
@@ -106,7 +116,7 @@ export default DeadReckoningApp = () => {
                 <Text style={{marginVertical: 5}}>Gyro Listeners: {JSON.stringify(Gyroscope.getListenerCount())}</Text>
             </View>
             <View style={styles.buttonContainer}>
-                <TouchableOpacity onPress={started? clearSubscriptions : testerFunction} style={styles.button}>
+                <TouchableOpacity onPress={started? stopSubscriptions : startSubscriptions} style={styles.button}>
                                 <Text>{!started? 'START' : 'STOP'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={clearScreen} style={styles.button}>
@@ -114,59 +124,59 @@ export default DeadReckoningApp = () => {
                 </TouchableOpacity>
             </View>
             <View style={{marginVertical: 10}}> 
-                <Text>Accelerometer Data length: {JSON.stringify(accelerometerData.x.length)}</Text>
+                <Text>Accelerometer Data length: {accelerometerData.x.length}</Text>
             </View>
             <View style={{marginVertical: 10}}> 
-                <Text>Gyroscope Data length: {JSON.stringify(gyroscopeData.x.length)}</Text>
+                <Text>Gyroscope Data length: {gyroscopeData.x.length}</Text>
             </View>
             <View>
                 <LineChart 
                     data={{
                         datasets:[
                             // {
-                            //     data: accelerometerData.getNorm(),
-                            //     strokeWidth: 5,
+                            //     data: accelerometerData.x.slice(-1500),
+                            //     strokeWidth: 1,
                             //     withDots: false,
-                            //     color: () => `rgb(255, 255, 255)`,
+                            //     color: () => `rgb(255, 0, 0)`,
+                            // },
+                            // {
+                            //     data: accelerometerData.y.slice(-1500),
+                            //     strokeWidth: 1,
+                            //     withDots: false,
+                            //     color: () => `rgb(0, 255, 0)`,
+                            // },
+                            // {
+                            //     data: accelerometerData.z.slice(-1500),
+                            //     strokeWidth: 1,
+                            //     withDots: false,
+                            //     color: () => `rgb(0, 0, 255)`,
+                            // },
+                            // {
+                            //     data: userAccelData.x.slice(-1500),
+                            //     strokeWidth: 6,
+                            //     withDots: false,
+                            //     color: () => `rgb(155, 0, 0)`,
+                            // },
+                            // {
+                            //     data: userAccelData.y.slice(-1500),
+                            //     strokeWidth: 6,
+                            //     withDots: false,
+                            //     color: () => `rgb(0, 155, 0)`,
+                            // },
+                            // {
+                            //     data: userAccelData.z.slice(-1500),
+                            //     strokeWidth: 6,
+                            //     withDots: false,
+                            //     color: () => `rgb(0, 0, 155)`,
                             // },
                             {
-                                data: accelerometerData.x,
+                                data: Filter.high_1_hz(Filter.low_5_hz(dotProduct(gravAccelData, userAccelData))).slice(-600),
                                 strokeWidth: 1,
-                                withDots: false,
-                                color: () => `rgb(255, 0, 0)`,
-                            },
-                            {
-                                data: accelerometerData.y,
-                                strokeWidth: 1,
-                                withDots: false,
-                                color: () => `rgb(0, 255, 0)`,
-                            },
-                            {
-                                data: accelerometerData.z,
-                                strokeWidth: 1,
-                                withDots: false,
-                                color: () => `rgb(0, 0, 255)`,
-                            },
-                            {
-                                data: Filter.low_0_hz(accelerometerData.x),
-                                strokeWidth: 6,
-                                withDots: false,
-                                color: () => `rgb(155, 0, 0)`,
-                            },
-                            {
-                                data: Filter.low_0_hz(accelerometerData.y),
-                                strokeWidth: 6,
-                                withDots: false,
-                                color: () => `rgb(0, 155, 0)`,
-                            },
-                            {
-                                data: Filter.low_0_hz(accelerometerData.z),
-                                strokeWidth: 6,
-                                withDots: false,
-                                color: () => `rgb(0, 0, 155)`,
+                                withDots: true,
+                                color: () => `rgb(255, 255, 255)`,
                             },
                         ],
-                        legend: ['X', 'Y', 'Z', 'Fx', 'Fy', 'Fz']
+                        legend: ['a1D']
                     }}
                     width={Dimensions.get('window').width}
                     height={350}
@@ -183,6 +193,38 @@ export default DeadReckoningApp = () => {
     );
 
 } 
+
+
+function processAccData() {
+
+    let gravX = Filter.low_0_hz(accelerometerData.x);
+    let userX = accelerometerData.x.map((v, i) => v - gravX[i]);
+
+    let gravY = Filter.low_0_hz(accelerometerData.y);
+    let userY = accelerometerData.y.map((v, i) => v - gravY[i]);
+
+    let gravZ = Filter.low_0_hz(accelerometerData.z);
+    let userZ = accelerometerData.z.map((v, i) => v - gravZ[i]);
+
+    gravAccelData.setData({x:gravX, y:gravY, z:gravZ});
+    userAccelData.setData({x:userX, y:userY, z:userZ});
+
+    let a1D = Filter.high_1_hz(Filter.low_0_hz(dotProduct(gravAccelData, userAccelData)));
+
+};
+
+function dotProduct(xyzA, xyzB) {
+    let res = [];
+
+    for(let i=0; i<xyzA.x.length; i++){
+        res[i] =    xyzA.x[i] * xyzB.x[i] +
+                    xyzA.y[i] * xyzB.y[i] + 
+                    xyzA.z[i] * xyzB.z[i];
+    }
+
+    return res;
+}
+
 
 const styles = StyleSheet.create({
     buttonContainer: {
