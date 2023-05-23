@@ -36,6 +36,9 @@ export default DeadReckoningApp = () => {
 
     const [accelSub, setAccelSub] = useState(null);
     const [gyroSub, setGyroSub] = useState(null);
+
+    const [stepCount, setStepCount] = useState(0);
+    const [lastAccIdx, setLastAccIdx] = useState(0);
  
     const startSubscriptions = () => {
         Accelerometer.isAvailableAsync()
@@ -55,9 +58,7 @@ export default DeadReckoningApp = () => {
             setClear(false);
 
             setAccelSub(Accelerometer.addListener(accelDataCallback));
-            setGyroSub(Gyroscope.addListener(gyroDataCallback));     
-            
-            // processAccData();
+            setGyroSub(Gyroscope.addListener(gyroDataCallback));
         }
         
     }
@@ -79,26 +80,63 @@ export default DeadReckoningApp = () => {
 
         setStarted(false);
         processAccData();
+        console.log(`------------------------------------------------`);
     }
 
-
     const clearScreen = () => {
-        Accelerometer.removeAllListeners();
-        Gyroscope.removeAllListeners();
-
-        setAccelSub(null);
-        setGyroSub(null);
-        setClear(true);
         setStarted(false);
+        setClear(true);
+
+        Accelerometer.removeAllListeners();
+        setAccelSub(null);
+        Gyroscope.removeAllListeners();
+        setGyroSub(null);
+
+        setStepCount(0);
+        setLastAccIdx(0);
 
         accelerometerData.clear();
         gravAccelData.clear();
         userAccelData.clear();
         
         gyroscopeData.clear();
-
     }
 
+    function countSteps(acc1d){
+        const THRESH = -0.04;
+        let stepFlag = true;
+
+        for(let i=lastAccIdx; i<acc1d.length; i++){
+            if(stepFlag) {
+                if(acc1d[i] <= THRESH && acc1d[i-1] > THRESH){
+                    setStepCount((c) => c + 1);
+                    stepFlag = false;
+                }
+            }
+
+            if(acc1d[i] > 0 && acc1d[i-1] <= 0 && !stepFlag) {stepFlag=true};
+        }
+    }
+
+    function processAccData() {
+
+        let gravX = Filter.low_0_hz(accelerometerData.x);
+        let userX = accelerometerData.x.map((v, i) => v - gravX[i]);
+    
+        let gravY = Filter.low_0_hz(accelerometerData.y);
+        let userY = accelerometerData.y.map((v, i) => v - gravY[i]);
+    
+        let gravZ = Filter.low_0_hz(accelerometerData.z);
+        let userZ = accelerometerData.z.map((v, i) => v - gravZ[i]);
+    
+        gravAccelData.setData({x:gravX, y:gravY, z:gravZ});
+        userAccelData.setData({x:userX, y:userY, z:userZ});
+    
+        let a1D = Filter.high_1_hz(Filter.low_5_hz(dotProduct(gravAccelData, userAccelData)));
+    
+        countSteps(a1D);
+        setLastAccIdx(accelerometerData.x.length);
+    };
 
     useEffect(() => {
         startSubscriptions();
@@ -114,6 +152,7 @@ export default DeadReckoningApp = () => {
                 <Text>started: {JSON.stringify(started)}</Text>
                 <Text style={{marginVertical: 10}}>Accel Listeners: {JSON.stringify(Accelerometer.getListenerCount())}</Text>
                 <Text style={{marginVertical: 5}}>Gyro Listeners: {JSON.stringify(Gyroscope.getListenerCount())}</Text>
+                <Text style ={{marginVertical: 5, fontSize: 20, color: '#d00'}}> Step Counter: {stepCount}</Text>
             </View>
             <View style={styles.buttonContainer}>
                 <TouchableOpacity onPress={started? stopSubscriptions : startSubscriptions} style={styles.button}>
@@ -194,24 +233,6 @@ export default DeadReckoningApp = () => {
 
 } 
 
-
-function processAccData() {
-
-    let gravX = Filter.low_0_hz(accelerometerData.x);
-    let userX = accelerometerData.x.map((v, i) => v - gravX[i]);
-
-    let gravY = Filter.low_0_hz(accelerometerData.y);
-    let userY = accelerometerData.y.map((v, i) => v - gravY[i]);
-
-    let gravZ = Filter.low_0_hz(accelerometerData.z);
-    let userZ = accelerometerData.z.map((v, i) => v - gravZ[i]);
-
-    gravAccelData.setData({x:gravX, y:gravY, z:gravZ});
-    userAccelData.setData({x:userX, y:userY, z:userZ});
-
-    let a1D = Filter.high_1_hz(Filter.low_0_hz(dotProduct(gravAccelData, userAccelData)));
-
-};
 
 function dotProduct(xyzA, xyzB) {
     let res = [];
