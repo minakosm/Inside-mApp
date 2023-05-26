@@ -16,7 +16,7 @@ import { LineChart } from "react-native-chart-kit";
 import { SensorData } from "../utils/SensorData";
 import * as Filter from "../utils/Filters";
 
-const _freqUpdate = 10;
+const _freqUpdate = 10; // 10 ms updateRate or 100hz 
 
 const accelerometerData = new SensorData();
 const gravAccelData = new SensorData();
@@ -38,6 +38,7 @@ export default DeadReckoningApp = () => {
     const [gyroSub, setGyroSub] = useState(null);
 
     const [stepCount, setStepCount] = useState(0);
+    const [stepDist, setStepDist] = useState(0);
     const [lastAccIdx, setLastAccIdx] = useState(0);
  
     const startSubscriptions = () => {
@@ -104,17 +105,47 @@ export default DeadReckoningApp = () => {
 
     function countSteps(acc1d){
         const THRESH = -0.04;
+        const WEIGHT = 1;
         let stepFlag = true;
+        let rangeFlag = false;
+        let stepTimestamps = [];
+        let a_min = 100;
+        let a_max = -100;
+
+        let start = 0 ;
+        let end  = 0 ;
+        let timeStamp = Date.now();
 
         for(let i=lastAccIdx; i<acc1d.length; i++){
             if(stepFlag) {
                 if(acc1d[i] <= THRESH && acc1d[i-1] > THRESH){
                     setStepCount((c) => c + 1);
+                    stepTimestamps.push(1000/(Date.now() - timeStamp));
+                    timeStamp = Date.now();
+                    rangeFlag = true;
+                    start = i;
                     stepFlag = false;
+                }
+
+                if(acc1d[i] <= 0 && acc1d[i-1] > 0 && rangeFlag){
+                    end = i;
+                    a_min = Math.min(...acc1d.slice(start, end));
+                    a_max = Math.max(...acc1d.slice(start, end));
+
+                    console.log(`stepTimestamps = ${JSON.stringify(stepTimestamps)}`);
+
+                    const meanFreq = stepTimestamps.reduce((accumulator, currentValue) => {
+                        accumulator = accumulator + currentValue;
+                        return (1000/(accumulator/stepTimestamps.length));
+                    });
+
+                    console.log(`stepTimestapms = ${stepTimestamps}\t meanFreq = ${meanFreq}`);
                 }
             }
 
-            if(acc1d[i] > 0 && acc1d[i-1] <= 0 && !stepFlag) {stepFlag=true};
+            if(acc1d[i] > 0 && acc1d[i-1] <= 0 && !stepFlag) {
+                stepFlag=true;
+            }
         }
     }
 
@@ -211,11 +242,23 @@ export default DeadReckoningApp = () => {
                             {
                                 data: Filter.high_1_hz(Filter.low_5_hz(dotProduct(gravAccelData, userAccelData))).slice(-600),
                                 strokeWidth: 1,
-                                withDots: true,
+                                withDots: false,
                                 color: () => `rgb(255, 255, 255)`,
                             },
+                            {
+                                data: Array(600).fill(-0.04),
+                                strokeWidth: 2,
+                                withDots: false, 
+                                color: () => 'rgb(255, 0, 0)',
+                            },
+                            {
+                                data: Array(600).fill(0),
+                                strokeWidth: 1, 
+                                withDots: false, 
+                                color: () => 'rgb(0,255,0)',
+                            },
                         ],
-                        legend: ['a1D']
+                        legend: ['a1D', 'THRESH']
                     }}
                     width={Dimensions.get('window').width}
                     height={350}
