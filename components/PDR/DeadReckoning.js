@@ -94,6 +94,7 @@ export default DeadReckoningApp = () => {
         setGyroSub(null);
 
         setStepCount(0);
+        setStepDist(0);
         setLastAccIdx(0);
 
         accelerometerData.clear();
@@ -106,40 +107,34 @@ export default DeadReckoningApp = () => {
     function countSteps(acc1d){
         const THRESH = -0.04;
         const WEIGHT = 1;
+        const FREQ = 1;
+
         let stepFlag = true;
-        let rangeFlag = false;
+        let firstStep = false;
         let stepTimestamps = [];
-        let a_min = 100;
-        let a_max = -100;
 
         let start = 0 ;
         let end  = 0 ;
-        let timeStamp = Date.now();
+
 
         for(let i=lastAccIdx; i<acc1d.length; i++){
             if(stepFlag) {
                 if(acc1d[i] <= THRESH && acc1d[i-1] > THRESH){
                     setStepCount((c) => c + 1);
-                    stepTimestamps.push(1000/(Date.now() - timeStamp));
-                    timeStamp = Date.now();
-                    rangeFlag = true;
-                    start = i;
+                    firstStep = true;
+                    stepTimestamps.push(i*_freqUpdate - stepTimestamps[stepTimestamps.length-1]); //100 hz sample rate
+                    start = i-1;
                     stepFlag = false;
                 }
 
-                if(acc1d[i] <= 0 && acc1d[i-1] > 0 && rangeFlag){
+                if(acc1d[i] <= 0 && acc1d[i-1] > 0 && firstStep){
                     end = i;
-                    a_min = Math.min(...acc1d.slice(start, end));
-                    a_max = Math.max(...acc1d.slice(start, end));
+                    let a_min = Math.min(...acc1d.slice(start, end));
+                    let a_max = Math.max(...acc1d.slice(start, end));
 
-                    console.log(`stepTimestamps = ${JSON.stringify(stepTimestamps)}`);
-
-                    const meanFreq = stepTimestamps.reduce((accumulator, currentValue) => {
-                        accumulator = accumulator + currentValue;
-                        return (1000/(accumulator/stepTimestamps.length));
-                    });
-
-                    console.log(`stepTimestapms = ${stepTimestamps}\t meanFreq = ${meanFreq}`);
+                    let stepLength = Math.pow(Math.abs(a_max-a_min), 1/4);
+                    console.log(`stepLength = ${stepLength}`);
+                    setStepDist((d) => d + stepLength);
                 }
             }
 
@@ -184,6 +179,7 @@ export default DeadReckoningApp = () => {
                 <Text style={{marginVertical: 10}}>Accel Listeners: {JSON.stringify(Accelerometer.getListenerCount())}</Text>
                 <Text style={{marginVertical: 5}}>Gyro Listeners: {JSON.stringify(Gyroscope.getListenerCount())}</Text>
                 <Text style ={{marginVertical: 5, fontSize: 20, color: '#d00'}}> Step Counter: {stepCount}</Text>
+                <Text style ={{marginVertical: 5, fontSize: 14, color: '#d00'}}> Distance Walked: {stepDist.toPrecision(3)} m.</Text>
             </View>
             <View style={styles.buttonContainer}>
                 <TouchableOpacity onPress={started? stopSubscriptions : startSubscriptions} style={styles.button}>
