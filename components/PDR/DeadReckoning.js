@@ -24,6 +24,7 @@ const userAccelData = new SensorData();
 
 
 const gyroscopeData = new SensorData();
+const userGyroData = new SensorData();
 
 // Start Accelerometer - Gyroscope Subscripitons
 
@@ -40,7 +41,10 @@ export default DeadReckoningApp = () => {
     const [stepCount, setStepCount] = useState(0);
     const [stepDist, setStepDist] = useState(0);
     const [lastAccIdx, setLastAccIdx] = useState(0);
- 
+    const [lastGyroIdx, setLastGyroIdx] = useState(0);
+
+    const [testArea, setTestArea] = useState(0);
+
     const startSubscriptions = () => {
         Accelerometer.isAvailableAsync()
         .then((resolve) => setAccelAvail(resolve))
@@ -80,7 +84,8 @@ export default DeadReckoningApp = () => {
         setGyroSub(null);
 
         setStarted(false);
-        processAccData();
+        // processAccData();
+        processGyroData();
         console.log(`------------------------------------------------`);
     }
 
@@ -97,11 +102,15 @@ export default DeadReckoningApp = () => {
         setStepDist(0);
         setLastAccIdx(0);
 
+        setTestArea(0);
+        setLastGyroIdx(0);
+
         accelerometerData.clear();
         gravAccelData.clear();
         userAccelData.clear();
         
         gyroscopeData.clear();
+        userGyroData.clear();
     }
 
     function countSteps(acc1d){
@@ -146,23 +155,37 @@ export default DeadReckoningApp = () => {
 
     function processAccData() {
 
-        let gravX = Filter.low_0_hz(accelerometerData.x);
-        let userX = accelerometerData.x.map((v, i) => v - gravX[i]);
-    
-        let gravY = Filter.low_0_hz(accelerometerData.y);
-        let userY = accelerometerData.y.map((v, i) => v - gravY[i]);
-    
-        let gravZ = Filter.low_0_hz(accelerometerData.z);
-        let userZ = accelerometerData.z.map((v, i) => v - gravZ[i]);
-    
-        gravAccelData.setData({x:gravX, y:gravY, z:gravZ});
-        userAccelData.setData({x:userX, y:userY, z:userZ});
+        gravAccelData.setData({
+            x: Filter.low_0_hz(accelerometerData.x),
+            y: Filter.low_0_hz(accelerometerData.y),
+            z: Filter.low_0_hz(accelerometerData.z)
+        });
+
+        userAccelData.setData({
+            x: accelerometerData.x.map((v, i) => v - gravAccelData.x[i]), 
+            y: accelerometerData.y.map((v, i) => v - gravAccelData.y[i]), 
+            z: accelerometerData.z.map((v, i) => v - gravAccelData.z[i])
+        });
     
         let a1D = Filter.high_1_hz(Filter.low_5_hz(dotProduct(gravAccelData, userAccelData)));
     
         countSteps(a1D);
         setLastAccIdx(accelerometerData.x.length);
     };
+
+    function processGyroData() {
+        userGyroData.setData({
+            x: Filter.low_5_hz(gyroscopeData.x),
+            y: Filter.low_5_hz(gyroscopeData.y),
+            z: Filter.low_5_hz(gyroscopeData.z)
+        });
+
+        for(let i=lastGyroIdx; i<gyroscopeData.z.length; i++){
+            setTestArea((c) => c + (gyroscopeData.z[i]*(_freqUpdate*0.001))*(180 / Math.PI));
+        }
+
+        setLastGyroIdx(gyroscopeData.z.length);
+    }
 
     useEffect(() => {
         startSubscriptions();
@@ -180,6 +203,7 @@ export default DeadReckoningApp = () => {
                 <Text style={{marginVertical: 5}}>Gyro Listeners: {JSON.stringify(Gyroscope.getListenerCount())}</Text>
                 <Text style ={{marginVertical: 5, fontSize: 20, color: '#d00'}}> Step Counter: {stepCount}</Text>
                 <Text style ={{marginVertical: 5, fontSize: 14, color: '#d00'}}> Distance Walked: {stepDist.toPrecision(3)} m.</Text>
+                <Text style ={{marginVertical: 5, fontSize: 14, color: '#d00'}}> Current θ: {testArea.toFixed(3)} deg</Text>
             </View>
             <View style={styles.buttonContainer}>
                 <TouchableOpacity onPress={started? stopSubscriptions : startSubscriptions} style={styles.button}>
@@ -199,62 +223,45 @@ export default DeadReckoningApp = () => {
                 <LineChart 
                     data={{
                         datasets:[
-                            // {
-                            //     data: accelerometerData.x.slice(-1500),
-                            //     strokeWidth: 1,
-                            //     withDots: false,
-                            //     color: () => `rgb(255, 0, 0)`,
-                            // },
-                            // {
-                            //     data: accelerometerData.y.slice(-1500),
-                            //     strokeWidth: 1,
-                            //     withDots: false,
-                            //     color: () => `rgb(0, 255, 0)`,
-                            // },
-                            // {
-                            //     data: accelerometerData.z.slice(-1500),
-                            //     strokeWidth: 1,
-                            //     withDots: false,
-                            //     color: () => `rgb(0, 0, 255)`,
-                            // },
-                            // {
-                            //     data: userAccelData.x.slice(-1500),
-                            //     strokeWidth: 6,
-                            //     withDots: false,
-                            //     color: () => `rgb(155, 0, 0)`,
-                            // },
-                            // {
-                            //     data: userAccelData.y.slice(-1500),
-                            //     strokeWidth: 6,
-                            //     withDots: false,
-                            //     color: () => `rgb(0, 155, 0)`,
-                            // },
-                            // {
-                            //     data: userAccelData.z.slice(-1500),
-                            //     strokeWidth: 6,
-                            //     withDots: false,
-                            //     color: () => `rgb(0, 0, 155)`,
-                            // },
                             {
-                                data: Filter.high_1_hz(Filter.low_5_hz(dotProduct(gravAccelData, userAccelData))).slice(-600),
-                                strokeWidth: 1,
-                                withDots: false,
-                                color: () => `rgb(255, 255, 255)`,
-                            },
-                            {
-                                data: Array(600).fill(-0.04),
+                                data: gyroscopeData.x.slice(-600),
                                 strokeWidth: 2,
-                                withDots: false, 
-                                color: () => 'rgb(255, 0, 0)',
+                                withDots: false,
+                                color: () => `rgb(100, 0, 0)`,
                             },
                             {
-                                data: Array(600).fill(0),
-                                strokeWidth: 1, 
-                                withDots: false, 
-                                color: () => 'rgb(0,255,0)',
+                                data: gyroscopeData.y.slice(-600),
+                                strokeWidth: 2,
+                                withDots: false,
+                                color: () => `rgb(0, 100, 0)`,
                             },
+                            {
+                                data: gyroscopeData.z.slice(-600),
+                                strokeWidth: 2,
+                                withDots: false,
+                                color: () => `rgb(0, 0, 100)`,
+                            },
+                            // {
+                            //     data: Filter.high_1_hz(Filter.low_5_hz(dotProduct(gravAccelData, userAccelData))).slice(-600),
+                            //     strokeWidth: 1,
+                            //     withDots: false,
+                            //     color: () => `rgb(255, 255, 255)`,
+                            // },
+                            // {
+                            //     data: Array(600).fill(-0.04),
+                            //     strokeWidth: 2,
+                            //     withDots: false, 
+                            //     color: () => 'rgb(255, 0, 0)',
+                            // },
+                            // {
+                            //     data: Array(600).fill(0),
+                            //     strokeWidth: 1, 
+                            //     withDots: false, 
+                            //     color: () => 'rgb(0,255,0)',
+                            // },
                         ],
-                        legend: ['a1D', 'THRESH']
+                        // legend: ['a1D', 'THRESH']
+                        legend: ['x', 'y', 'z']
                     }}
                     width={Dimensions.get('window').width}
                     height={350}
