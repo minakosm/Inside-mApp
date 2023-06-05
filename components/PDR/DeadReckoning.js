@@ -76,7 +76,7 @@ export default DeadReckoningApp = () => {
         gyroscopeData.pushData(data);
     }
 
-    const stopSubscriptions = () => {
+    const clearSubscriptions = () => {
         Accelerometer.removeAllListeners();
         Gyroscope.removeAllListeners();
         
@@ -84,19 +84,12 @@ export default DeadReckoningApp = () => {
         setGyroSub(null);
 
         setStarted(false);
-        // processAccData();
-        processGyroData();
-        console.log(`------------------------------------------------`);
     }
 
     const clearScreen = () => {
-        setStarted(false);
-        setClear(true);
 
-        Accelerometer.removeAllListeners();
-        setAccelSub(null);
-        Gyroscope.removeAllListeners();
-        setGyroSub(null);
+        clearSubscriptions();
+        setClear(true);
 
         setStepCount(0);
         setStepDist(0);
@@ -112,6 +105,16 @@ export default DeadReckoningApp = () => {
         gyroscopeData.clear();
         userGyroData.clear();
     }
+    
+    function stopAndCalculate() {
+        clearSubscriptions();
+
+        console.log(`== START PROCESSING ==`);
+        processAccData();
+        processGyroData();
+        console.log(`------------------------------------------------`);
+    }
+
 
     function countSteps(acc1d){
         const THRESH = -0.04;
@@ -120,7 +123,6 @@ export default DeadReckoningApp = () => {
 
         let stepFlag = true;
         let firstStep = false;
-        let stepTimestamps = [];
 
         let start = 0 ;
         let end  = 0 ;
@@ -131,7 +133,6 @@ export default DeadReckoningApp = () => {
                 if(acc1d[i] <= THRESH && acc1d[i-1] > THRESH){
                     setStepCount((c) => c + 1);
                     firstStep = true;
-                    stepTimestamps.push(i*_freqUpdate - stepTimestamps[stepTimestamps.length-1]); //100 hz sample rate
                     start = i-1;
                     stepFlag = false;
                 }
@@ -143,6 +144,7 @@ export default DeadReckoningApp = () => {
 
                     let stepLength = Math.pow(Math.abs(a_max-a_min), 1/4);
                     console.log(`stepLength = ${stepLength}`);
+
                     setStepDist((d) => d + stepLength);
                 }
             }
@@ -189,7 +191,7 @@ export default DeadReckoningApp = () => {
 
     useEffect(() => {
         startSubscriptions();
-        return () => clearScreen();
+        return () => clearSubscriptions();
     }, []);
 
     return (
@@ -206,7 +208,7 @@ export default DeadReckoningApp = () => {
                 <Text style ={{marginVertical: 5, fontSize: 14, color: '#d00'}}> Current θ: {testArea.toFixed(3)} deg</Text>
             </View>
             <View style={styles.buttonContainer}>
-                <TouchableOpacity onPress={started? stopSubscriptions : startSubscriptions} style={styles.button}>
+                <TouchableOpacity onPress={started? stopAndCalculate : startSubscriptions} style={styles.button}>
                                 <Text>{!started? 'START' : 'STOP'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={clearScreen} style={styles.button}>
@@ -227,19 +229,19 @@ export default DeadReckoningApp = () => {
                                 data: gyroscopeData.x.slice(-600),
                                 strokeWidth: 2,
                                 withDots: false,
-                                color: () => `rgb(100, 0, 0)`,
+                                color: () => `rgb(255, 0, 0)`,
                             },
                             {
                                 data: gyroscopeData.y.slice(-600),
                                 strokeWidth: 2,
                                 withDots: false,
-                                color: () => `rgb(0, 100, 0)`,
+                                color: () => `rgb(0, 255, 0)`,
                             },
                             {
                                 data: gyroscopeData.z.slice(-600),
                                 strokeWidth: 2,
                                 withDots: false,
-                                color: () => `rgb(0, 0, 100)`,
+                                color: () => `rgb(0, 0, 255)`,
                             },
                             // {
                             //     data: Filter.high_1_hz(Filter.low_5_hz(dotProduct(gravAccelData, userAccelData))).slice(-600),
