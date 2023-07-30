@@ -23,11 +23,12 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 // Sensors
 import DeadReckoningApp from './components/PDR/DeadReckoning';
+import PDRApp from './components/PDR/PDR';
 
 export default function App() {
   return(
-    <DeadReckoningApp />
-
+    // <DeadReckoningApp />
+    <PDRApp />
   );
 }
 

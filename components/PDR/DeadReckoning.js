@@ -8,7 +8,7 @@ import React, { useState, useEffect, useReducer, useMemo } from "react";
 import { StyleSheet, Text, View, Dimensions, AppState, TouchableOpacity } from "react-native";
 import { Slider } from "@miblanchard/react-native-slider";
 
-import { Accelerometer, Gyroscope } from "expo-sensors"; 
+import { Accelerometer, Gyroscope, Magnetometer } from "expo-sensors"; 
 import Button from "../utils/Button";
 import { isRejectedWithValue } from "@reduxjs/toolkit";
 import { LineChart } from "react-native-chart-kit";
@@ -19,14 +19,13 @@ import * as Filter from "../utils/Filters";
 const _freqUpdate = 10; // 10 ms updateRate or 100hz 
 
 const accelerometerData = new SensorData();
+const gyroscopeData = new SensorData();
+const magnetometerData = new SensorData();
+
 const gravAccelData = new SensorData();
 const userAccelData = new SensorData();
 
-
-const gyroscopeData = new SensorData();
 const userGyroData = new SensorData();
-
-// Start Accelerometer - Gyroscope Subscripitons
 
 export default DeadReckoningApp = () => {
     const [started, setStarted] = useState(false);
@@ -34,9 +33,11 @@ export default DeadReckoningApp = () => {
 
     const [accelAvail, setAccelAvail] = useState(false);
     const [gyroAvail, setGyroAvail] = useState(false);
+    const [magnetAvail, setMagnetAvail] = useState(false);
 
     const [accelSub, setAccelSub] = useState(null);
     const [gyroSub, setGyroSub] = useState(null);
+    const [magnetSub, setMagnetSub] = useState(null);
 
     const [stepCount, setStepCount] = useState(0);
     const [stepDist, setStepDist] = useState(0);
@@ -53,17 +54,23 @@ export default DeadReckoningApp = () => {
         Gyroscope.isAvailableAsync()
         .then((resolve) => setGyroAvail(resolve))
         .catch(isRejectedWithValue((reject) => setGyroAvail(reject)));
+
+        Magnetometer.isAvailableAsync()
+        .then((resolve) => setMagnetAvail(resolve))
+        .catch(isRejectedWithValue((reject) => setMagnetAvail(reject)));
         
-        if(accelAvail && gyroAvail) {
+        if(accelAvail && gyroAvail && magnetAvail) {
             
             Accelerometer.setUpdateInterval(_freqUpdate);
             Gyroscope.setUpdateInterval(_freqUpdate);
+            Magnetometer.setUpdateInterval(_freqUpdate);
 
             setStarted(true);
             setClear(false);
 
             setAccelSub(Accelerometer.addListener(accelDataCallback));
             setGyroSub(Gyroscope.addListener(gyroDataCallback));
+            setMagnetSub(Magnetometer.addListener(magnetDataCallback));
         }
         
     }
@@ -76,12 +83,18 @@ export default DeadReckoningApp = () => {
         gyroscopeData.pushData(data);
     }
 
+    const magnetDataCallback = (data) => {
+        magnetometerData.pushData(data);
+    }
+
     const clearSubscriptions = () => {
         Accelerometer.removeAllListeners();
         Gyroscope.removeAllListeners();
+        Magnetometer.removeAllListeners();
         
         setAccelSub(null);
         setGyroSub(null);
+        setMagnetSub(null);
 
         setStarted(false);
     }
@@ -104,6 +117,8 @@ export default DeadReckoningApp = () => {
         
         gyroscopeData.clear();
         userGyroData.clear();
+
+        magnetometerData.clear();
     }
     
     function stopAndCalculate() {
@@ -221,24 +236,27 @@ export default DeadReckoningApp = () => {
             <View style={{marginVertical: 10}}> 
                 <Text>Gyroscope Data length: {gyroscopeData.x.length}</Text>
             </View>
+            <View style={{marginVertical: 10}}> 
+                <Text>Magnetometer Data length: {magnetometerData.x.length}</Text>
+            </View>
             <View>
                 <LineChart 
                     data={{
                         datasets:[
                             {
-                                data: gyroscopeData.x.slice(-600),
+                                data: magnetometerData.x.slice(-600),
                                 strokeWidth: 2,
                                 withDots: false,
                                 color: () => `rgb(255, 0, 0)`,
                             },
                             {
-                                data: gyroscopeData.y.slice(-600),
+                                data: magnetometerData.y.slice(-600),
                                 strokeWidth: 2,
                                 withDots: false,
                                 color: () => `rgb(0, 255, 0)`,
                             },
                             {
-                                data: gyroscopeData.z.slice(-600),
+                                data: magnetometerData.z.slice(-600),
                                 strokeWidth: 2,
                                 withDots: false,
                                 color: () => `rgb(0, 0, 255)`,
