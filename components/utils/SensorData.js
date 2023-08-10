@@ -13,7 +13,7 @@ class SensorData {
         this.z = sensorDataObj.z;
     }
 
-    getData(key) {
+    getData() {
         return {x:this.x, y:this.y, z: this.z};
     }
 

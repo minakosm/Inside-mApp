@@ -1,7 +1,9 @@
+import { DeviceMotion } from "expo-sensors";
+import * as mathjs from "mathjs";
 
 export default class MadgwickFilter {
     constructor(samplePeriod, beta) {
-        this.SamplePeriod = samplePeriod;
+        this.SamplePeriod = samplePeriod/ 1000; // Given in ms
         this.Beta = beta;
         this.Quaternion = [1, 0, 0, 0];
     }
@@ -19,14 +21,66 @@ export default class MadgwickFilter {
         this.Quaternion[3] = q[3];
     }
 
-    update(accDataObj, gyroDataObj, magDataObj) {
+    getEulerAngles(){
+        return this._calcEulerAngles(this.Quaternion);
+    }
+
+    _quat2rot(q) {
+        let qw, qx, qy, qz;
+        qw = q[0];
+        qx = q[1];
+        qy = q[2];
+        qz = q[3];
+
+        let c11 = qw*qw + qx*qx - qy*qy - qz*qz;
+        let c12 = 2 * (qx*qy - qw*qz);
+        let c13 = 2 * (qx*qz + qw*qy);
+
+        let c21 = 2 * (qx*qy + qw*qz);
+        let c22 = qw*qw - qx*qx + qy*qy - qz*qz;
+        let c23 = 2 * (qy*qz - qw*qx);
+        
+        let c31 = 2 * (qx*qz - qw*qy);
+        let c32 = 2 * (qy*qz + qw*qx);
+        let c33 = qw*qw - qx*qx - qy*qy + qz*qz;
+
+        return mathjs.matrix([[c11, c12, c13], [c21, c22, c23], [c31, c32, c33]]);
+    }
+
+    _calcEulerAngles(q) {
+        let yaw, pitch, roll;
+        let rot = this._quat2rot(q);
+        let check = rot.get([2,0]);
+
+        if(check > 0.99999){
+            yaw = 0;
+            pitch = Math.PI/2;
+            roll = Math.atan2(rot.get([0,1]), rot.get([0,2]));
+        }else if(check < -0.99999){
+            yaw = 0;
+            pitch = -Math.PI/2;
+            roll = Math.atan2(-rot.get([0,1]), -rot.get([0,2]))
+        } else {
+            yaw = Math.atan2(rot.get([1,0]), rot.get([0,0]));
+            pitch = Math.asin(-rot.get([2,0]));
+            roll = Math.atan2(rot.get([2,1]), rot.get([2,2]));           
+        }
+
+        yaw *= 180/Math.PI;
+        pitch *= 180/Math.PI;
+        roll *= 180/Math.PI;
+
+        return [yaw, pitch, roll];
+    }
+
+    _update(accDataObj, gyroDataObj, magDataObj) {
         let ax = accDataObj.x;
         let ay = accDataObj.y;
         let az = accDataObj.z;
 
-        let gx = gyroDataObj.x * (Math.PI / 180);
-        let gy = gyroDataObj.y * (Math.PI / 180);
-        let gz = gyroDataObj.z * (Math.PI / 180);
+        let gx = gyroDataObj.x;
+        let gy = gyroDataObj.y;
+        let gz = gyroDataObj.z;
 
         let mx = magDataObj.x;
         let my = magDataObj.y;
@@ -101,11 +155,16 @@ export default class MadgwickFilter {
         _4bz = 2 * _2bz;
 
         // Gradient decent algorithm corrective step 
-        sw = -_2qy * (2 * qxqz - _2qwqy - ax) + _2qx * (2 * qwqx + _2qyqz - ay) - _2bz * qy * (_2bx * (0.5 - qyqy - qzqz) + _2bz * (qxqz - qwqy) - mx) + (-_2bx * qz + _2bz * qx) * (_2bx * (qxqy - qwqz) + _2bz * (qwqx + qyqz) - my) + _2bx * qy * (_2bx * (qwqy + qxqz) + _2bz * (0.5 - qxqx - qyqy) - mz);
-        sx = _2qz * (2 * qxqz - _2qwqy - ax) + _2qw * (2 * qwqx + _2qyqz - ay) - 4 * qx * (1 - 2 * qxqx - 2 * qyqy - az) + _2bz * qz * (_2bx * (0.5 - qyqy - qzqz) + _2bz * (qxqz - qwqy) - mx) + (_2bx * qy + _2bz * qw) * (_2bx * (qxqy - qwqz) + _2bz * (qwqx + qyqz) - my) + (_2bx * qz - _4bz * qx) * (_2bx * (qwqy + qxqz) + _2bz * (0.5 - qxqx - qyqy) - mz);
-        sy = -_2qw * (2 * qxqz - _2qwqy - ax) + _2qz * (2 * qwqx + _2qyqz - ay) - 4 * qy * (1 - 2 * qxqx - 2 * qyqy - az) + (-_4bx * qy - _2bz * qw) * (_2bx * (0.5 - qyqy - qzqz) + _2bz * (qxqz - qwqy) - mx) + (_2bx * qx + _2bz * qz) * (_2bx * (qxqy - qwqz) + _2bz * (qwqx + qyqz) - my) + (_2bx * qw - _4bz * qy) * (_2bx * (qwqy + qxqz) + _2bz * (0.5 - qxqx - qyqy) - mz);
-        sz = _2qx * (2 * qxqz - _2qwqy - ax) + _2qy * (2 * qwqx + _2qyqz - ay) + (-_4bx * qz + _2bz * qx) * (_2bx * (0.5 - qyqy - qzqz) + _2bz * (qxqz - qwqy) - mx) + (-_2bx * qw + _2bz * qy) * (_2bx * (qxqy - qwqz) + _2bz * (qwqx + qyqz) - my) + _2bx * qx * (_2bx * (qwqy + qxqz) + _2bz * (0.5 - qxqx - qyqy) - mz);
+        // sw = -_2qy * (2 * qxqz - _2qwqy - ax) + _2qx * (2 * qwqx + _2qyqz - ay) - _2bz * qy * (_2bx * (0.5 - qyqy - qzqz) + _2bz * (qxqz - qwqy) - mx) + (-_2bx * qz + _2bz * qx) * (_2bx * (qxqy - qwqz) + _2bz * (qwqx + qyqz) - my) + _2bx * qy * (_2bx * (qwqy + qxqz) + _2bz * (0.5 - qxqx - qyqy) - mz);
+        // sx = _2qz * (2 * qxqz - _2qwqy - ax) + _2qw * (2 * qwqx + _2qyqz - ay) - 4 * qx * (1 - 2 * qxqx - 2 * qyqy - az) + _2bz * qz * (_2bx * (0.5 - qyqy - qzqz) + _2bz * (qxqz - qwqy) - mx) + (_2bx * qy + _2bz * qw) * (_2bx * (qxqy - qwqz) + _2bz * (qwqx + qyqz) - my) + (_2bx * qz - _4bz * qx) * (_2bx * (qwqy + qxqz) + _2bz * (0.5 - qxqx - qyqy) - mz);
+        // sy = -_2qw * (2 * qxqz - _2qwqy - ax) + _2qz * (2 * qwqx + _2qyqz - ay) - 4 * qy * (1 - 2 * qxqx - 2 * qyqy - az) + (-_4bx * qy - _2bz * qw) * (_2bx * (0.5 - qyqy - qzqz) + _2bz * (qxqz - qwqy) - mx) + (_2bx * qx + _2bz * qz) * (_2bx * (qxqy - qwqz) + _2bz * (qwqx + qyqz) - my) + (_2bx * qw - _4bz * qy) * (_2bx * (qwqy + qxqz) + _2bz * (0.5 - qxqx - qyqy) - mz);
+        // sz = _2qx * (2 * qxqz - _2qwqy - ax) + _2qy * (2 * qwqx + _2qyqz - ay) + (-_4bx * qz + _2bz * qx) * (_2bx * (0.5 - qyqy - qzqz) + _2bz * (qxqz - qwqy) - mx) + (-_2bx * qw + _2bz * qy) * (_2bx * (qxqy - qwqz) + _2bz * (qwqx + qyqz) - my) + _2bx * qx * (_2bx * (qwqy + qxqz) + _2bz * (0.5 - qxqx - qyqy) - mz);
         
+        sw = -_2qy * (2 * qxqz - _2qwqy - ax) + _2qx * (2 * qwqx + _2qyqz - ay) - _2bz * qy * (_2bx * (0.5 - qyqy - qzqz) + _2bz * (qxqz - qwqy) - mx) + (-_2bx * qz + _2bz * qx) * (_2bx * (qxqy - qwqz) + _2bz * (qwqx + qyqz) - my) + _2bx * qy * (_2bx * (qwqy + qxqz) + _2bz * (0.5 - qxqx - qyqy) - mz);
+		sx = _2qz * (2 * qxqz - _2qwqy - ax) + _2qw * (2 * qwqx + _2qyqz - ay) - 4 * qx * (1 - 2 * qxqx - 2 * qyqy - az) + _2bz * qz * (_2bx * (0.5 - qyqy - qzqz) + _2bz * (qxqz - qwqy) - mx) + (_2bx * qy + _2bz * qw) * (_2bx * (qxqy - qwqz) + _2bz * (qwqx + qyqz) - my) + (_2bx * qz - _4bz * qx) * (_2bx * (qwqy + qxqz) + _2bz * (0.5 - qxqx - qyqy) - mz);
+		sy = -_2qw * (2 * qxqz - _2qwqy - ax) + _2qz * (2 * qwqx + _2qyqz - ay) - 4 * qy * (1 - 2 * qxqx - 2 * qyqy - az) + (-_4bx * qy - _2bz * qw) * (_2bx * (0.5 - qyqy - qzqz) + _2bz * (qxqz - qwqy) - mx) + (_2bx * qx + _2bz * qz) * (_2bx * (qxqy - qwqz) + _2bz * (qwqx + qyqz) - my) + (_2bx * qw - _4bz * qy) * (_2bx * (qwqy + qxqz) + _2bz * (0.5 - qxqx - qyqy) - mz);
+		sz = _2qx * (2 * qxqz - _2qwqy - ax) + _2qy * (2 * qwqx + _2qyqz - ay) + (-_4bx * qz + _2bz * qx) * (_2bx * (0.5 - qyqy - qzqz) + _2bz * (qxqz - qwqy) - mx) + (-_2bx * qw + _2bz * qy) * (_2bx * (qxqy - qwqz) + _2bz * (qwqx + qyqz) - my) + _2bx * qx * (_2bx * (qwqy + qxqz) + _2bz * (0.5 - qxqx - qyqy) - mz);
+
         norm = 1 / Math.sqrt(sw * sw + sx * sx + sy * sy + sz * sz);    // normalise step magnitude
         sw *= norm;
         sx *= norm;
@@ -131,4 +190,5 @@ export default class MadgwickFilter {
         this.Quaternion[2] = qy*norm;
         this.Quaternion[3] = qz*norm;
     }
+
 }
