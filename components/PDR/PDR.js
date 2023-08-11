@@ -5,10 +5,11 @@ import { SensorData } from "../utils/SensorData";
 import { isRejectedWithValue } from "@reduxjs/toolkit";
 
 import { Gravity } from "expo-sensors/build/DeviceMotion";
-import { ExtendedKalmanFilter, ExtendedKalmanFilter2 } from "./ExtendedKalmanFilter";
-import MadgwickFilter from "./MadgwickFilter";
 
-const _freqUpdate = 50;
+import MadgwickFilter from "./MadgwickFilter";
+import { AttitudeEstimator } from "./AttitudeEstimation";
+
+const _freqUpdate = 50; 
 const beta = 0.041;
 
 const noiseVariances = [0.3*0.3, 0.5*0.5, 0.8*0.8];
@@ -18,7 +19,7 @@ const gyroscopeData = new SensorData();
 const magnetometerData = new SensorData();
 
 // const madgwick = new MadgwickFilter(_freqUpdate, beta);
-const ekf2 = new ExtendedKalmanFilter2(_freqUpdate);
+const attEst = new AttitudeEstimator(_freqUpdate);
 
 export default PDRApp = () => {
     // const [devSub, setDevSub] = useState(null);
@@ -34,8 +35,8 @@ export default PDRApp = () => {
     const [start, setStart] = useState(false);
     const [clear, setClear] = useState(true);
 
-    // const [deviceMadgwickOrientation, setDeviceMadgwickOrientation] = useState(madgwick.getQuaternion());
-    const [ekfOrientation, setEkfOrientation] = useState(ekf2.getQuaternion());
+    
+    const [ekfOrientation, setEkfOrientation] = useState(attEst.getQuaternion());
 
     const [eulerAngles, setEulerAngles] = useState([0,0,0]);
 
@@ -43,11 +44,10 @@ export default PDRApp = () => {
     const isBufferFull = useRef([false, false, false]);
 
     const update = () => {
-        // madgwick._update(accelerometerData, gyroscopeData, magnetometerData);
-        ekf2.update(accelerometerData, gyroscopeData, magnetometerData);
-        // setDeviceMadgwickOrientation(madgwick.getQuaternion());
-        setEkfOrientation(ekf2.getQuaternion());
-        setEulerAngles(ekf2.getEulerAngles());
+        attEst.update(accelerometerData, gyroscopeData, magnetometerData);
+       
+        setEkfOrientation(attEst.getQuaternion());
+        setEulerAngles(attEst.getEulerAngles());
         isBufferFull.current = [false, false, false];
     }
 
@@ -109,14 +109,10 @@ export default PDRApp = () => {
         _unsubscribe();
 
         setClear(true);
-        // setDeviceMadgwickOrientation(() => {
-        //     madgwick.setQuaternion([1,0,0,0]);
-        //     return madgwick.getQuaternion();
-        // });
 
         setEkfOrientation(() => {
-            ekf2.reset();
-            return ekf2.getQuaternion();
+            attEst.reset();
+            return attEst.getQuaternion();
         })
         // ekf._reset();
         // setDeviceMotionData({
@@ -151,13 +147,13 @@ export default PDRApp = () => {
         }}>
             <Text>PDR APP</Text>
             <Text>Running: {JSON.stringify(start)}</Text>
-            {/* <View style={{ marginVertical: 15 }}>
+            <View style={{ marginVertical: 15 }}>
                 <Text>Acceleration g </Text>
                 <Text>x: {accelerometerData.x}</Text>
                 <Text>y: {accelerometerData.y}</Text>
                 <Text>z: {accelerometerData.z}</Text>
             </View>
-            <View style={{ marginVertical: 15 }}>
+            {/*<View style={{ marginVertical: 15 }}>
                 <Text>Acceleration DM</Text>
                 <Text>x: {deviceMotionData.acceleration.x}</Text>
                 <Text>y: {deviceMotionData.acceleration.y}</Text>
@@ -173,13 +169,13 @@ export default PDRApp = () => {
                 <Text>x: {deviceMotionData.accelerationGravity.x}</Text>
                 <Text>y: {deviceMotionData.accelerationGravity.y}</Text>
                 <Text>z: {deviceMotionData.accelerationGravity.z}</Text>
-            </View>
+                </View> */}
             <View style={{ marginVertical: 15 }}>
-                <Text>Rotation rad</Text>
+                <Text>Magnetometer μT</Text>
                 <Text>x: {magnetometerData.x}</Text>
                 <Text>y: {magnetometerData.y}</Text>
                 <Text>z: {magnetometerData.z}</Text>
-                </View> */}
+                </View>
             {/* <View style={{ marginVertical: 15 }}>
                 <Text>Rotation Rate deg/s</Text>
                 <Text>x: {gyroscopeData.x}</Text>
@@ -194,6 +190,9 @@ export default PDRApp = () => {
             </View> */}
             <View style={{ marginVertical: 50 }}>
                 <Text>yaw: {eulerAngles[0].toFixed(2)}  pitch: {eulerAngles[1].toFixed(2)}  roll: {eulerAngles[2].toFixed(2)}  </Text>
+            </View>
+            <View style={{ marginVertical: 15}}>
+                <Text>Gyro Bias: {JSON.stringify([attEst.getBias()[0].toFixed(3), attEst.getBias()[1].toFixed(3), attEst.getBias()[2].toFixed(3)])}</Text>
             </View>
             <View style={styles.buttonContainer}>
                 <TouchableOpacity onPress={start ? _unsubscribe : _subscribe} style={styles.button}>
