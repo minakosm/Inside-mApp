@@ -1,4 +1,5 @@
 import { DeviceMotion } from "expo-sensors";
+import { Gravity } from "expo-sensors/build/DeviceMotion";
 import * as mathjs from "mathjs";
 
 export default class MadgwickFilter {
@@ -25,6 +26,10 @@ export default class MadgwickFilter {
         return this._calcEulerAngles(this.Quaternion);
     }
 
+    reset(){
+        this.Quaternion = [1, 0, 0, 0];
+    }
+
     _quat2rot(q) {
         let qw, qx, qy, qz;
         qw = q[0];
@@ -33,15 +38,15 @@ export default class MadgwickFilter {
         qz = q[3];
 
         let c11 = qw*qw + qx*qx - qy*qy - qz*qz;
-        let c12 = 2 * (qx*qy - qw*qz);
-        let c13 = 2 * (qx*qz + qw*qy);
+        let c12 = 2 * (qx*qy + qw*qz);
+        let c13 = 2 * (qx*qz - qw*qy);
 
-        let c21 = 2 * (qx*qy + qw*qz);
+        let c21 = 2 * (qx*qy - qw*qz);
         let c22 = qw*qw - qx*qx + qy*qy - qz*qz;
-        let c23 = 2 * (qy*qz - qw*qx);
+        let c23 = 2 * (qy*qz + qw*qx);
         
-        let c31 = 2 * (qx*qz - qw*qy);
-        let c32 = 2 * (qy*qz + qw*qx);
+        let c31 = 2 * (qx*qz + qw*qy);
+        let c32 = 2 * (qy*qz - qw*qx);
         let c33 = qw*qw - qx*qx - qy*qy + qz*qz;
 
         return mathjs.matrix([[c11, c12, c13], [c21, c22, c23], [c31, c32, c33]]);
@@ -50,20 +55,20 @@ export default class MadgwickFilter {
     _calcEulerAngles(q) {
         let yaw, pitch, roll;
         let rot = this._quat2rot(q);
-        let check = rot.get([2,0]);
+        let check = -rot.get([0,2]);
 
         if(check > 0.99999){
             yaw = 0;
             pitch = Math.PI/2;
-            roll = Math.atan2(rot.get([0,1]), rot.get([0,2]));
+            roll = Math.atan2(rot.get([1,0]), rot.get([2,0]));
         }else if(check < -0.99999){
             yaw = 0;
             pitch = -Math.PI/2;
-            roll = Math.atan2(-rot.get([0,1]), -rot.get([0,2]))
+            roll = Math.atan2(-rot.get([1,0]), -rot.get([2,0]))
         } else {
-            yaw = Math.atan2(rot.get([1,0]), rot.get([0,0]));
-            pitch = Math.asin(-rot.get([2,0]));
-            roll = Math.atan2(rot.get([2,1]), rot.get([2,2]));           
+            yaw = Math.atan2(rot.get([0,1]), rot.get([0,0]));
+            pitch = Math.asin(-rot.get([0,2]));
+            roll = Math.atan2(rot.get([1,2]), rot.get([2,2]));           
         }
 
         yaw *= 180/Math.PI;
@@ -73,14 +78,14 @@ export default class MadgwickFilter {
         return [yaw, pitch, roll];
     }
 
-    _update(accDataObj, gyroDataObj, magDataObj) {
+    update(accDataObj, gyroDataObj, magDataObj) {
         let ax = accDataObj.x;
         let ay = accDataObj.y;
         let az = accDataObj.z;
 
-        let gx = gyroDataObj.x;
-        let gy = gyroDataObj.y;
-        let gz = gyroDataObj.z;
+        let gx = gyroDataObj.x * (Math.PI/180);
+        let gy = gyroDataObj.y * (Math.PI/180);
+        let gz = gyroDataObj.z * (Math.PI/180);
 
         let mx = magDataObj.x;
         let my = magDataObj.y;

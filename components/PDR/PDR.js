@@ -9,35 +9,28 @@ import { Gravity } from "expo-sensors/build/DeviceMotion";
 import MadgwickFilter from "./MadgwickFilter";
 import { AttitudeEstimator } from "./AttitudeEstimation";
 
-const _freqUpdate = 50; 
-const beta = 0.041;
-
-const noiseVariances = [0.3*0.3, 0.5*0.5, 0.8*0.8];
+const _freqUpdate = 30; 
 
 const accelerometerData = new SensorData();
 const gyroscopeData = new SensorData();
 const magnetometerData = new SensorData();
 
-// const madgwick = new MadgwickFilter(_freqUpdate, beta);
+
 const attEst = new AttitudeEstimator(_freqUpdate);
 
 export default PDRApp = () => {
-    // const [devSub, setDevSub] = useState(null);
 
-    // const [deviceMotionData, setDeviceMotionData] = useState({
-    //     acceleration: {},
-    //     accelerationIncludingGravity: {},
-    //     accelerationGravity: {},
-    //     rotation: {},
-    //     rotationRate: {}
-    // });
+    const [deviceMotionData, setDeviceMotionData] = useState({
+        acceleration: {},
+        accelerationIncludingGravity: {},
+        accelerationGravity: {},
+        rotation: {},
+        rotationRate: {}
+    });
 
     const [start, setStart] = useState(false);
     const [clear, setClear] = useState(true);
-
     
-    const [ekfOrientation, setEkfOrientation] = useState(attEst.getQuaternion());
-
     const [eulerAngles, setEulerAngles] = useState([0,0,0]);
 
     const isFirstRender = useRef(true);
@@ -45,8 +38,7 @@ export default PDRApp = () => {
 
     const update = () => {
         attEst.update(accelerometerData, gyroscopeData, magnetometerData);
-       
-        setEkfOrientation(attEst.getQuaternion());
+        // setEkfOrientation(attEst.getQuaternion());
         setEulerAngles(attEst.getEulerAngles());
         isBufferFull.current = [false, false, false];
     }
@@ -55,22 +47,12 @@ export default PDRApp = () => {
         Promise.all([DeviceMotion.isAvailableAsync(), Gyroscope.isAvailableAsync(), Magnetometer.isAvailableAsync(), Accelerometer.isAvailableAsync()])
             .then(() => {
                 console.log(`START SUBSCRIPTIONS`);
-                // DeviceMotion.setUpdateInterval(_freqUpdate);
                 Gyroscope.setUpdateInterval(_freqUpdate);
                 Magnetometer.setUpdateInterval(_freqUpdate);
                 Accelerometer.setUpdateInterval(_freqUpdate);
                 setStart(true);
                 setClear(false);
-                
-                // setDevSub(DeviceMotion.addListener((data) => {
-                //     setDeviceMotionData({acceleration: data.acceleration, 
-                //         accelerationIncludingGravity: data.accelerationIncludingGravity, 
-                //         accelerationGravity: {x: (data.accelerationIncludingGravity.x - data.acceleration.x),
-                //             y: (data.accelerationIncludingGravity.y - data.acceleration.y),
-                //             z: (data.accelerationIncludingGravity.z - data.acceleration.z)},
-                //         rotation: {alpha: data.rotation.alpha, beta: data.rotation.beta, gamma: data.rotation.gamma}, 
-                //         rotationRate: {alpha: data.rotationRate.alpha, beta: data.rotationRate.beta, gamma: data.rotationRate.gamma}});
-                // }));
+
                 Accelerometer.addListener((data) => {
                     accelerometerData.setData({x: data.x, y: data.y, z: data.z});
                     isBufferFull.current[0] = true;
@@ -98,8 +80,6 @@ export default PDRApp = () => {
         Accelerometer.removeAllListeners();
         Gyroscope.removeAllListeners();
         Magnetometer.removeAllListeners();
-        // devSub && devSub.remove();
-        // setDevSub(null);
 
         setStart(false);
         console.log('STOP SUBSCRIPTIONS');
@@ -110,24 +90,23 @@ export default PDRApp = () => {
 
         setClear(true);
 
-        setEkfOrientation(() => {
+        setEulerAngles(() => {
             attEst.reset();
-            return attEst.getQuaternion();
+            return attEst.getEulerAngles();
         })
-        // ekf._reset();
-        // setDeviceMotionData({
-        //     acceleration: {},
-        //     accelerationIncludingGravity: {},
-        //     accelerationGravity: {},
-        //     rotation: {},
-        //     rotationRate: {}
-        // });
+
+        setDeviceMotionData({
+            acceleration: {},
+            accelerationIncludingGravity: {},
+            accelerationGravity: {},
+            rotation: {},
+            rotationRate: {}
+        });
 
         accelerometerData.clear();
         gyroscopeData.clear();
         magnetometerData.clear();
 
-        setEulerAngles([0,0,0]);
         isBufferFull.current = [false, false, false];
     }
 
@@ -176,18 +155,12 @@ export default PDRApp = () => {
                 <Text>y: {magnetometerData.y}</Text>
                 <Text>z: {magnetometerData.z}</Text>
                 </View>
-            {/* <View style={{ marginVertical: 15 }}>
+            <View style={{ marginVertical: 15 }}>
                 <Text>Rotation Rate deg/s</Text>
                 <Text>x: {gyroscopeData.x}</Text>
                 <Text>y: {gyroscopeData.y}</Text>
                 <Text>z: {gyroscopeData.z}</Text>
             </View>
-            <View style={{ marginVertical: 50 }}>
-                <Text>Madgwick Quaternion  {deviceMadgwickOrientation[0].toFixed(3)}  {deviceMadgwickOrientation[1].toFixed(3)}  {deviceMadgwickOrientation[2].toFixed(3)}  {deviceMadgwickOrientation[3].toFixed(3)}</Text>
-            </View>
-            <View style={{ marginVertical: 50 }}>
-                <Text>EKF2 Quaternion  {ekfOrientation[0]}  {ekfOrientation[1]}  {ekfOrientation[2]}  {ekfOrientation[3]}</Text>
-            </View> */}
             <View style={{ marginVertical: 50 }}>
                 <Text>yaw: {eulerAngles[0].toFixed(2)}  pitch: {eulerAngles[1].toFixed(2)}  roll: {eulerAngles[2].toFixed(2)}  </Text>
             </View>

@@ -19,7 +19,8 @@ export class AttitudeEstimator {
         this.SamplePeriod = samplePeriod / 1000; // in ms
         // Local EAST-NORTH-UP coordinate system
         this.accelReference = mathjs.matrix([[0],[0],[1]]);
-        this.magReference = mathjs.matrix([[0], [mathjs.cos(5.19 *(mathjs.pi/180))], [-mathjs.sin(5.19 *(mathjs.pi/180))]]) // magnetic dip in Thessaloniki
+        // this.magReference = mathjs.matrix([[0], [mathjs.cos(5.19 *(mathjs.pi/180))], [-mathjs.sin(5.19 *(mathjs.pi/180))]]); // magnetic dip in Thessaloniki
+        this.magReference = mathjs.matrix([[0], [1], [0]]);
     }
 
     getQuaternion(){return [this.Quaternion[0], this.Quaternion[1], this.Quaternion[2], this.Quaternion[3]]}
@@ -63,7 +64,7 @@ export class AttitudeEstimator {
     _calcEulerAngles(q) {
         let yaw, pitch, roll;
         let rot = this._quat2rot(q);
-        let check = (-1) * rot.get([0,2]);
+        let check = -rot.get([0,2]);
 
         if(check > 0.99999){
             yaw = 0;
@@ -86,7 +87,7 @@ export class AttitudeEstimator {
         return [yaw, pitch, roll];
     }
 
-    _getJacobianMatrix(reference, qEstimation){
+    _getJacobianMatrix(reference, q){
         let r0, r1, r2;
         let q0, q1, q2, q3;
 
@@ -94,10 +95,10 @@ export class AttitudeEstimator {
         r1 = reference.get([1,0]);
         r2 = reference.get([2,0]);
 
-        q0 = qEstimation[0];
-        q1 = qEstimation[1];
-        q2 = qEstimation[2];
-        q3 = qEstimation[3];
+        q0 = q[0];
+        q1 = q[1];
+        q2 = q[2];
+        q3 = q[3];
 
         let j11, j12, j13, j14;
         let j21, j22, j23, j24;
@@ -137,9 +138,9 @@ export class AttitudeEstimator {
         let ax, ay, az;
         let mx, my, mz;
         
-        wx = gyroDataObj.x + this.Bias[0];
-        wy = gyroDataObj.y + this.Bias[1];
-        wz = gyroDataObj.z + this.Bias[2];
+        wx = gyroDataObj.x;
+        wy = gyroDataObj.y;
+        wz = gyroDataObj.z;
         let w = mathjs.matrix([[wx], [wy], [wz]]);
 
         ax = accDataObj.x;
@@ -198,17 +199,26 @@ export class AttitudeEstimator {
         estP = mathjs.add(mathjs.multiply(A, this.P, mathjs.transpose(A)), this.Q);
 
         let q_est = [estState.get([0,0]), estState.get([1,0]), estState.get([2,0]), estState.get([3,0])];
+
+        norm = Math.sqrt(q_est[0]*q_est[0] + q_est[1]*q_est[1] + q_est[2]*q_est[2] + q_est[3]*q_est[3]);
+        if(norm == 0){return;}
+        norm = 1/norm;
+        q_est[0] *= norm;
+        q_est[1] *= norm;
+        q_est[2] *= norm;
+        q_est[3] *= norm;
+
         let rotC = this._quat2rot(q_est);
 
-        Ha = this._getJacobianMatrix(this.accelReference, q_est);
-        Hm = this._getJacobianMatrix(this.magReference, q_est);
+        Ha = this._getJacobianMatrix(this.accelReference, [qw, qx, qy, qz]);
+        Hm = this._getJacobianMatrix(this.magReference, [qw, qx, qy, qz]);
 
         let est_a = mathjs.multiply(rotC, this.accelReference);
         let est_m = mathjs.multiply(rotC, this.magReference);
 
         let C1 = mathjs.concat(Ha, mathjs.zeros(3,3));
         let C2 = mathjs.concat(Hm, mathjs.zeros(3,3));
-        C = mathjs.concat(C1, C2).resize([6,7]);
+        C = mathjs.concat(C1, C2, 0);
 
         let est_y = mathjs.concat(est_a, est_m, 0);
         // let est_y = mathjs.multiply(C, this.State);
@@ -234,23 +244,22 @@ export class AttitudeEstimator {
 
         norm = Math.sqrt(new_qw*new_qw + new_qx*new_qx + new_qy*new_qy + new_qz*new_qz);
         if(norm == 0){return;}
-        norm = 1/norm
+        norm = 1/norm;
 
         new_qw *= norm;
         new_qx *= norm;
         new_qy *= norm;
         new_qz *= norm;
 
-        this.Quaternion[0] = new_qw;
-        this.Quaternion[1] = new_qx; 
-        this.Quaternion[2] = new_qy;
-        this.Quaternion[3] = new_qz;
+        this.Quaternion = [new_qw, new_qx, new_qy, new_qz];
 
-        this.Bias = mathjs.squeeze(this.State.subset(mathjs.index([4,5,6], [0])));
-        this.Bias = [this.Bias.get([0]), this.Bias.get([1]), this.Bias.get([2])];
-        this.State.subset(mathjs.index([0,1,2,3],[0]), this.Quaternion); 
+        this.Bias = [this.State.get([4,0]), this.State.get([5,0]), this.State.get([6,0])];
+       
+        this.State.set([0,0], new_qw);
+        this.State.set([1,0], new_qx);
+        this.State.set([2,0], new_qy);
+        this.State.set([3,0], new_qz);
 
         this.P = mathjs.multiply(mathjs.subtract(mathjs.identity(7), mathjs.multiply(K, C)), estP);
-
     }
 }
