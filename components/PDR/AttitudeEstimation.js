@@ -252,7 +252,7 @@ export class AttitudeEstimator {
         new_qz *= norm;
 
         this.Quaternion = [new_qw, new_qx, new_qy, new_qz];
-
+        
         this.Bias = [this.State.get([4,0]), this.State.get([5,0]), this.State.get([6,0])];
        
         this.State.set([0,0], new_qw);
