@@ -25,10 +25,18 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import DeadReckoningApp from './components/PDR/DeadReckoning';
 import PDRApp from './components/PDR/PDR';
 
+const Tab = createBottomTabNavigator();
 export default function App() {
   return(
-    // <DeadReckoningApp />
-    <PDRApp />
+    <NavigationContainer>
+      <Tab.Navigator>
+        {/* <DeadReckoningApp /> */}
+        <Tab.Screen name="PDR" component={PDRApp}/>
+        <Tab.Screen name = "DEADRECKONING" component={DeadReckoningApp}/>
+        {/* <PDRApp /> */}
+      </Tab.Navigator>
+    </NavigationContainer>
+
   );
 }
 

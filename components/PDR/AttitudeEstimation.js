@@ -1,24 +1,24 @@
 import { Gravity } from "expo-sensors/build/DeviceMotion";
-import  math, * as mathjs from "mathjs";
-import { Component } from "react";
-
+import  * as mathjs from "mathjs";
 
 // As proposed (https://thepoorengineer.com/en/attitude-determination/)
 export class AttitudeEstimator {
-    constructor(samplePeriod){
+    constructor(){
         this.Quaternion = [1, 0, 0, 0];
+        this.testQuat = [1, 0, 0, 0];
         this.Bias = [0, 0, 0];
 
         this.State = mathjs.transpose(mathjs.matrix([mathjs.concat(this.Quaternion, this.Bias)]));
-        console.log(`INIT STATE = ${this.State}`);
 
-        this.P = mathjs.multiply(0.01, mathjs.identity(7));
+        this.P = mathjs.multiply(0.1, mathjs.identity(7));
         this.Q = mathjs.multiply(0.001, mathjs.identity(7));
-        this.R = mathjs.multiply(0.1, mathjs.identity(6));
+        this.R = mathjs.multiply(0.01, mathjs.identity(6));
 
-        this.SamplePeriod = samplePeriod / 1000; // in ms
+        // this.SamplePeriod = samplePeriod / 1000; // in ms
+        this.SamplePeriod = 0;
+        this.firstRun = true;
         // Local EAST-NORTH-UP coordinate system
-        this.accelReference = mathjs.matrix([[0],[0],[1]]);
+        this.accelReference = mathjs.matrix([[0],[0],[-Gravity]]);
         // this.magReference = mathjs.matrix([[0], [mathjs.cos(5.19 *(mathjs.pi/180))], [-mathjs.sin(5.19 *(mathjs.pi/180))]]); // magnetic dip in Thessaloniki
         this.magReference = mathjs.matrix([[0], [1], [0]]);
     }
@@ -29,8 +29,12 @@ export class AttitudeEstimator {
     getQ(){return this.Q}
     getR(){return this.R}
 
-    getRotationMatrix(q) {return this._quat2rot(q);}
+    getRotationMatrix() {return this._quat2rot(this.Quaternion);}
     getEulerAngles(){return this._calcEulerAngles(this.Quaternion);}
+
+    setSamplePeriod(dt) {
+        this.SamplePeriod = dt;
+    }
 
     setQuaternion(q) {
         this.Quaternion[0] = q[0];
@@ -47,7 +51,7 @@ export class AttitudeEstimator {
         qz = q[3];
 
         let c11 = qw*qw + qx*qx - qy*qy - qz*qz;
-        let c12 = 2 * (qx*qy + qw*qz);
+        let c12 = 2 * (qx*qy + qw*qz); 
         let c13 = 2 * (qx*qz - qw*qy);
 
         let c21 = 2 * (qx*qy - qw*qz);
@@ -122,16 +126,18 @@ export class AttitudeEstimator {
 
     reset() {
         this.P = mathjs.multiply(0.01, mathjs.identity(7));
-        this.Q = mathjs.multiply(0.001, mathjs.identity(7));
-        this.R = mathjs.multiply(0.1, mathjs.identity(6));
 
         this.Bias = [0, 0, 0];
         this.Quaternion = [1, 0, 0, 0];
         this.State = mathjs.transpose(mathjs.matrix([mathjs.concat(this.Quaternion, this.Bias)]));
+        this.testQuat = [1, 0, 0, 0];
+
+        this.firstRun = true;
 
     }
 
     update(accDataObj, gyroDataObj, magDataObj){
+
         let norm;
 
         let wx, wy, wz;
@@ -141,20 +147,14 @@ export class AttitudeEstimator {
         wx = gyroDataObj.x;
         wy = gyroDataObj.y;
         wz = gyroDataObj.z;
+
+
         let w = mathjs.matrix([[wx], [wy], [wz]]);
 
         ax = accDataObj.x;
         ay = accDataObj.y;
         az = accDataObj.z;
 
-        // Normalize Acc Data
-        norm = Math.sqrt(ax*ax + ay*ay + az*az);
-        if(norm == 0) {return;}
-        norm = 1/norm;
-
-        ax *= norm;
-        ay *= norm;
-        az *= norm;
         let a = mathjs.matrix([[ax], [ay], [az]]);
 
         mx = magDataObj.x;
@@ -171,6 +171,11 @@ export class AttitudeEstimator {
         mz *= norm;
         let m = mathjs.matrix([[mx], [my], [mz]]);
 
+        if(this.firstRun){
+            this.firstRun = !this.firstRun;
+            this.magReference = mathjs.matrix([[mx], [my], [mz]]);
+        }
+
         let qw, qx, qy, qz;
 
         // Assign state variables to local variables for simplicity
@@ -180,7 +185,7 @@ export class AttitudeEstimator {
         qz = this.State.get([3,0]);
 
         // ESTIMATION STEP - (est_q, estP) 
-        let A, B, Ha, Hm, C;
+        let A, B, Ha, Hm, H;
         let estState, estP;
         let skewQ;
 
@@ -218,21 +223,21 @@ export class AttitudeEstimator {
 
         let C1 = mathjs.concat(Ha, mathjs.zeros(3,3));
         let C2 = mathjs.concat(Hm, mathjs.zeros(3,3));
-        C = mathjs.concat(C1, C2, 0);
+        H = mathjs.concat(C1, C2, 0);
 
         let est_y = mathjs.concat(est_a, est_m, 0);
-        // let est_y = mathjs.multiply(C, this.State);
+        // let est_y = mathjs.multiply(H, this.State);
 
         // UPDATE STEP
         let S, K, measurements;
 
-        S = mathjs.add(mathjs.multiply(C, estP, mathjs.transpose(C)), this.R);
+        S = mathjs.add(mathjs.multiply(H, estP, mathjs.transpose(H)), this.R);
         if(mathjs.det(S) == 0){
             console.log(`Determinant of S = 0, Skipping Update`);
             return;
         }
 
-        K = mathjs.multiply(estP, mathjs.transpose(C), mathjs.inv(S));
+        K = mathjs.multiply(estP, mathjs.transpose(H), mathjs.inv(S));
         measurements = mathjs.concat(a,m,0);
 
         this.State = mathjs.add(estState, mathjs.multiply(K, mathjs.subtract(measurements, est_y)));
@@ -252,7 +257,7 @@ export class AttitudeEstimator {
         new_qz *= norm;
 
         this.Quaternion = [new_qw, new_qx, new_qy, new_qz];
-        
+
         this.Bias = [this.State.get([4,0]), this.State.get([5,0]), this.State.get([6,0])];
        
         this.State.set([0,0], new_qw);
@@ -260,6 +265,10 @@ export class AttitudeEstimator {
         this.State.set([2,0], new_qy);
         this.State.set([3,0], new_qz);
 
-        this.P = mathjs.multiply(mathjs.subtract(mathjs.identity(7), mathjs.multiply(K, C)), estP);
+        let dKH = mathjs.subtract(mathjs.identity(7), mathjs.multiply(K, H));
+        let E = mathjs.multiply(K, this.R, mathjs.transpose(K));
+        this.P = mathjs.add(mathjs.multiply(dKH, estP, mathjs.transpose(dKH)), E);
+
+        // this.P = mathjs.multiply(mathjs.subtract(mathjs.identity(7), mathjs.multiply(K, H)), estP);
     }
 }

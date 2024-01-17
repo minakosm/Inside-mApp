@@ -8,19 +8,21 @@ import React, { useState, useEffect, useReducer, useMemo } from "react";
 import { StyleSheet, Text, View, Dimensions, AppState, TouchableOpacity } from "react-native";
 import { Slider } from "@miblanchard/react-native-slider";
 
-import { Accelerometer, Gyroscope, Magnetometer } from "expo-sensors"; 
+import { Accelerometer, Gyroscope, Magnetometer, DeviceMotion } from "expo-sensors"; 
 import Button from "../utils/Button";
 import { isRejectedWithValue } from "@reduxjs/toolkit";
 import { LineChart } from "react-native-chart-kit";
 
 import { SensorData } from "../utils/SensorData";
 import * as Filter from "../utils/Filters";
+import { resolve } from "mathjs";
 
 const _freqUpdate = 10; // 10 ms updateRate or 100hz 
 
 const accelerometerData = new SensorData();
 const gyroscopeData = new SensorData();
 const magnetometerData = new SensorData();
+const deviceMotionData = new SensorData();
 
 const gravAccelData = new SensorData();
 const userAccelData = new SensorData();
@@ -38,6 +40,7 @@ export default DeadReckoningApp = () => {
     const [accelSub, setAccelSub] = useState(null);
     const [gyroSub, setGyroSub] = useState(null);
     const [magnetSub, setMagnetSub] = useState(null);
+    const [deviceSub, setDeviceSub] = useState();
 
     const [stepCount, setStepCount] = useState(0);
     const [stepDist, setStepDist] = useState(0);
@@ -58,12 +61,14 @@ export default DeadReckoningApp = () => {
         Magnetometer.isAvailableAsync()
         .then((resolve) => setMagnetAvail(resolve))
         .catch(isRejectedWithValue((reject) => setMagnetAvail(reject)));
+
         
         if(accelAvail && gyroAvail && magnetAvail) {
             
             Accelerometer.setUpdateInterval(_freqUpdate);
             Gyroscope.setUpdateInterval(_freqUpdate);
             Magnetometer.setUpdateInterval(_freqUpdate);
+            DeviceMotion.setUpdateInterval(_freqUpdate);
 
             setStarted(true);
             setClear(false);
@@ -71,6 +76,10 @@ export default DeadReckoningApp = () => {
             setAccelSub(Accelerometer.addListener(accelDataCallback));
             setGyroSub(Gyroscope.addListener(gyroDataCallback));
             setMagnetSub(Magnetometer.addListener(magnetDataCallback));
+            setDeviceSub(DeviceMotion.addListener((data) => {
+                deviceMotionData.pushData(data.accelerationIncludingGravity);
+            }))
+
         }
         
     }
@@ -114,6 +123,7 @@ export default DeadReckoningApp = () => {
         accelerometerData.clear();
         gravAccelData.clear();
         userAccelData.clear();
+        deviceMotionData.clear();
         
         gyroscopeData.clear();
         userGyroData.clear();
@@ -132,7 +142,7 @@ export default DeadReckoningApp = () => {
 
 
     function countSteps(acc1d){
-        const THRESH = -0.04;
+        const THRESH = -0.03;
         const WEIGHT = 1;
         const FREQ = 1;
 
@@ -210,14 +220,11 @@ export default DeadReckoningApp = () => {
     }, []);
 
     return (
-        <View style={{marginVertical: 40, 
+        <View style={{marginVertical: -10, 
                       alignItems: 'center'}}>
-            <Text>PDR APP</Text>
             <View style={{marginVertical: 10,
                           alignItems: 'center'}}>
                 <Text>started: {JSON.stringify(started)}</Text>
-                <Text style={{marginVertical: 10}}>Accel Listeners: {JSON.stringify(Accelerometer.getListenerCount())}</Text>
-                <Text style={{marginVertical: 5}}>Gyro Listeners: {JSON.stringify(Gyroscope.getListenerCount())}</Text>
                 <Text style ={{marginVertical: 5, fontSize: 20, color: '#d00'}}> Step Counter: {stepCount}</Text>
                 <Text style ={{marginVertical: 5, fontSize: 14, color: '#d00'}}> Distance Walked: {stepDist.toPrecision(3)} m.</Text>
                 <Text style ={{marginVertical: 5, fontSize: 14, color: '#d00'}}> Current θ: {testArea.toFixed(3)} deg</Text>
@@ -231,54 +238,54 @@ export default DeadReckoningApp = () => {
                 </TouchableOpacity>
             </View>
             <View style={{marginVertical: 10}}> 
-                <Text>Accelerometer Data length: {accelerometerData.x.length}</Text>
+                <Text>Accelerometer Data length: {userAccelData.x.length}</Text>
             </View>
             <View style={{marginVertical: 10}}> 
-                <Text>Gyroscope Data length: {gyroscopeData.x.length}</Text>
+                <Text>Gyroscope Data length: {userAccelData.x.length}</Text>
             </View>
             <View style={{marginVertical: 10}}> 
-                <Text>Magnetometer Data length: {magnetometerData.x.length}</Text>
+                <Text>Magnetometer Data length: {userAccelData.x.length}</Text>
             </View>
             <View>
                 <LineChart 
                     data={{
                         datasets:[
-                            {
-                                data: magnetometerData.x.slice(-600),
-                                strokeWidth: 2,
-                                withDots: false,
-                                color: () => `rgb(255, 0, 0)`,
-                            },
-                            {
-                                data: magnetometerData.y.slice(-600),
-                                strokeWidth: 2,
-                                withDots: false,
-                                color: () => `rgb(0, 255, 0)`,
-                            },
-                            {
-                                data: magnetometerData.z.slice(-600),
-                                strokeWidth: 2,
-                                withDots: false,
-                                color: () => `rgb(0, 0, 255)`,
-                            },
                             // {
-                            //     data: Filter.high_1_hz(Filter.low_5_hz(dotProduct(gravAccelData, userAccelData))).slice(-600),
-                            //     strokeWidth: 1,
-                            //     withDots: false,
-                            //     color: () => `rgb(255, 255, 255)`,
-                            // },
-                            // {
-                            //     data: Array(600).fill(-0.04),
+                            //     data: gyroscopeData.x.slice(-600),
                             //     strokeWidth: 2,
-                            //     withDots: false, 
-                            //     color: () => 'rgb(255, 0, 0)',
+                            //     withDots: false,
+                            //     color: () => `rgb(255, 0, 0)`,
                             // },
                             // {
-                            //     data: Array(600).fill(0),
-                            //     strokeWidth: 1, 
-                            //     withDots: false, 
-                            //     color: () => 'rgb(0,255,0)',
+                            //     data: gyroscopeData.y.slice(-600),
+                            //     strokeWidth: 2,
+                            //     withDots: false,
+                            //     color: () => `rgb(0, 255, 0)`,
                             // },
+                            // {
+                            //     data: gyroscopeData.z.slice(-600),
+                            //     strokeWidth: 2,
+                            //     withDots: false,
+                            //     color: () => `rgb(0, 0, 255)`,
+                            // },
+                            {
+                                data: Filter.high_1_hz(Filter.low_5_hz(dotProduct(gravAccelData, userAccelData))).slice(-600),
+                                strokeWidth: 1,
+                                withDots: false,
+                                color: () => `rgb(255, 255, 255)`,
+                            },
+                            {
+                                data: Array(600).fill(-0.03),
+                                strokeWidth: 2,
+                                withDots: false, 
+                                color: () => 'rgb(255, 0, 0)',
+                            },
+                            {
+                                data: Array(600).fill(0),
+                                strokeWidth: 1, 
+                                withDots: false, 
+                                color: () => 'rgb(0,255,0)',
+                            },
                         ],
                         // legend: ['a1D', 'THRESH']
                         legend: ['x', 'y', 'z']
@@ -319,9 +326,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         flexDirection: 'row',
         flexWrap: 'wrap',
-        backgroundColor: "white",
         padding: 10,
-        marginVertical: 10,
+        marginVertical: -10,
     },
     button: {
       marginHorizontal: 10,
