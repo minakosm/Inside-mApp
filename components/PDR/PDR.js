@@ -17,7 +17,6 @@ const { StorageAccessFramework } = FileSystem;
 import { AttitudeEstimator } from "./AttitudeEstimation";
 import { NavigationEKF } from "./NavigationEKF";
 import { nav3 } from "./nav3";
-import { LineChart } from "react-native-chart-kit";
 
 const _freqUpdate = 20; // 50 ms sample period from motion sensors
 
@@ -177,7 +176,7 @@ export default PDRApp = () => {
             {name: "acc_wg", size: accelerationWithoutGravity.x.length, data:{x: accelerationWithoutGravity.x, y: accelerationWithoutGravity.y, z: accelerationWithoutGravity.z}, timestamp: accelerationWithoutGravity.t},
             // {name: "acc_rot", size: navEKF.xAccRotHistory.length, data:{x: navEKF.xAccRotHistory, y: navEKF.yAccRotHistory, z: navEKF.zAccRotHistory}},
             // {name: "vel", size: navEKF.xVelHistory.length, data:{x: navEKF.xVelHistory, y: navEKF.yVelHistory}},
-            // {name: "pos", size: navEKF.xPosHistory.length, data:{x: navEKF.xPosHistory, y: navEKF.yPosHistory}}, 
+            {name: "pos", size: nav3EKF.POSITION_HISTORY.length(), data:{x: nav3EKF.POSITION_HISTORY.data.x, y: nav3EKF.POSITION_HISTORY.data.y}}, 
           ]
 
         const filename = date.getDate() + "_" + date.getMonth() + "_" + date.getFullYear() + "_" + date.getHours() + ":" + date.getMinutes();
@@ -232,12 +231,9 @@ export default PDRApp = () => {
 
                 // navEKF.update(rotMat, accObj, gyroObj, magObj);
 
-                nav3EKF.runEKF(accWGObj, gyroObj, magObj, attEst.getRotationMatrix());
-
-                posMat = mathjs.concat(posMat, mathjs.transpose(nav3EKF.position));
+                nav3EKF.runEKF(accWGObj, gyroObj, magObj, attEst.getRotationMatrix(), attEst.Bias);
             }
 
-            console.log(posMat);
             alert("Playback Finished");
         } else {
             alert("You must pick a file to play back.");

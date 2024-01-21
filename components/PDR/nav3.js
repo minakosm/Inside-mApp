@@ -40,24 +40,24 @@ class DataHistory {
     }
 
     // Has to be an Object of x,y,z Arrays
-    set( dataObject ) {
+    set(dataObject) {
         let xExists = this.checkIfKeyExists(dataObject, "x");
         let yExists = this.checkIfKeyExists(dataObject, "y");
         let zExists = this.checkIfKeyExists(dataObject, "z");
 
-        if(xExists && yExists && zExists) {
+        if (xExists && yExists && zExists) {
             this.data = dataObject;
         }
-        
+
     }
 
     // Push a single measurement to the class object
-    push( dataObject ) {
+    push(dataObject) {
         let xExists = this.checkIfKeyExists(dataObject, "x");
         let yExists = this.checkIfKeyExists(dataObject, "y");
         let zExists = this.checkIfKeyExists(dataObject, "z");
 
-        if(xExists && yExists && zExists) {
+        if (xExists && yExists && zExists) {
             this.data.x.push(dataObject.x);
             this.data.y.push(dataObject.y);
             this.data.z.push(dataObject.z);
@@ -65,12 +65,12 @@ class DataHistory {
     }
 
     // Push a single measurement and remove the first from the class object
-    pushAndShift( dataObject ) {
+    pushAndShift(dataObject) {
         let xExists = this.checkIfKeyExists(dataObject, "x");
         let yExists = this.checkIfKeyExists(dataObject, "y");
         let zExists = this.checkIfKeyExists(dataObject, "z");
 
-        if(xExists && yExists && zExists) {
+        if (xExists && yExists && zExists) {
             this.data.x.push(dataObject.x);
             this.data.y.push(dataObject.y);
             this.data.z.push(dataObject.z);
@@ -83,10 +83,10 @@ class DataHistory {
 
     length() {
         let len = this.data.x.length;
-        if (this.data.y.length === len && this.data.z.length === len) {return len;} else {throw new Error('DataHistory.length : Missmatched length of components x-y-z');}
+        if (this.data.y.length === len && this.data.z.length === len) { return len; } else { throw new Error('DataHistory.length : Missmatched length of components x-y-z'); }
     }
     // utility function
-    checkIfKeyExists( objectName, keyName ) {
+    checkIfKeyExists(objectName, keyName) {
         let keyExists = Object.keys(objectName).some(key => key === keyName);
         return keyExists;
     }
@@ -102,23 +102,23 @@ class DataHistory {
 
 }
 
-export class nav3{
+export class nav3 {
     // Class Constructor 
     constructor() {
 
         // State Variables 
-        this.position = math.zeros(3,1);
-        this.velocity = math.zeros(3,1);
+        this.position = math.zeros(3, 1);
+        this.velocity = math.zeros(3, 1);
         this.attitude = [1, 0, 0, 0];       // Attitude Quaternion [w, x, y, z]
 
         // Error Variables 
-        this.dp = math.zeros(3,1);
-        this.dv = math.zeros(3,1);
-        this.da = math.zeros(3,1);
+        this.dp = math.zeros(3, 1);
+        this.dv = math.zeros(3, 1);
+        this.da = math.zeros(3, 1);
 
         // Last Step History
-        this.lastStepPos = math.zeros(3,1);
-        this.lastStepVel = math.zeros(3,1);
+        this.lastStepPos = math.zeros(3, 1);
+        this.lastStepVel = math.zeros(3, 1);
         this.lastStepRot = math.identity(3);
 
         // Quaternion for Attitude Estimation
@@ -129,12 +129,12 @@ export class nav3{
         this.RotationMatrix = math.identity(3);
 
         // Sensor Biases
-        this.gyroBias = math.zeros(3,1);
-        this.accBias = math.zeros(3,1);
+        this.gyroBias = math.zeros(3, 1);
+        this.accBias = math.zeros(3, 1);
 
         // Sensor Sample Period
         this.dt = 0;
-        
+
         // Data History Windows 
         this.accWindow = new DataHistory();
         this.gyroWindow = new DataHistory();
@@ -144,9 +144,12 @@ export class nav3{
         this.rotAccWindow = new DataHistory();
         this.rotGyroWindow = new DataHistory();
         this.rotMagWindow = new DataHistory();
+
+        // DEBUG
+        this.POSITION_HISTORY = new DataHistory();
     }
 
-    setDt (dt) {
+    setDt(dt) {
         this.dt = dt;
     }
 
@@ -154,23 +157,23 @@ export class nav3{
     reset() {
 
         // Clear State Variables 
-        this.position = math.zeros(3,1);
-        this.velocity = math.zeros(3,1);
+        this.position = math.zeros(3, 1);
+        this.velocity = math.zeros(3, 1);
         this.attitude = [1, 0, 0, 0];
 
         // Clear Error Variables 
-        this.dp = math.zeros(3,1);
-        this.dv = math.zeros(3,1);
-        this.da = math.zeros(3,1);
+        this.dp = math.zeros(3, 1);
+        this.dv = math.zeros(3, 1);
+        this.da = math.zeros(3, 1);
 
         // Clear Last Step History
-        this.lastStepPos = math.zeros(3,1);
-        this.lastStepVel = math.zeros(3,1);
+        this.lastStepPos = math.zeros(3, 1);
+        this.lastStepVel = math.zeros(3, 1);
         this.lastStepRot = math.identity(3);
 
         // Clear Sensor Biases
-        this.gyroBias = math.zeros(3,1);
-        this.accBias = math.zeros(3,1);
+        this.gyroBias = math.zeros(3, 1);
+        this.accBias = math.zeros(3, 1);
 
         // Clear Sensor Sample Period 
         this.dt = 0;
@@ -188,72 +191,77 @@ export class nav3{
         // Clear Global Vars
 
         // SDUP
-        STEP_ARRAY.splice(0, STEP_ARRAY.length);                          
-        SDUP_Z_LP.splice(0, SDUP_Z_LP.length);  
+        STEP_ARRAY.splice(0, STEP_ARRAY.length);
+        SDUP_Z_LP.splice(0, SDUP_Z_LP.length);
         SDUP_STEP_DETECTED = false;
-        SDUP_ZERO_CROSS = false; 
-        STEP_COUNTER = 0;    
-        SDUP_TIMEOUT = 0; 
-        
+        SDUP_ZERO_CROSS = false;
+        STEP_COUNTER = 0;
+        SDUP_TIMEOUT = 0;
+
         // DEBBUG
         DEBUG_1 = 0;
+        this.POSITION_HISTORY.clear();
     }
 
     // 3x3 Skew Symmetric matrix
     skewSymmetric(v) {
-        return math.matrix([[    0, -v[2],    v[1]],
-                            [ v[2],     0,   -v[0]],
-                            [-v[1],  v[0],       0]]);
+        return math.matrix([[0, -v[2], v[1]],
+        [v[2], 0, -v[0]],
+        [-v[1], v[0], 0]]);
     }
 
     // Quaternion Multiplication Helper Function
     quaternionMulti(q1, q2) {
         // q1 = [w1, x1, y1, z1], q2 = [w2, x2, y2, z2]
 
-        return [q1[0]*q2[0] - q1[1]*q2[1] - q1[2]*q2[2] - q1[3]*q2[3],
-                q1[0]*q2[1] + q1[1]*q2[0] + q1[2]*q2[3] - q1[3]*q2[2],
-                q1[0]*q2[2] - q1[1]*q2[3] + q1[2]*q2[0] + q1[3]*q2[1],
-                q1[0]*q2[3] + q1[1]*q2[2] - q1[2]*q2[1] + q1[3]*q2[0]];
+        return [q1[0] * q2[0] - q1[1] * q2[1] - q1[2] * q2[2] - q1[3] * q2[3],
+        q1[0] * q2[1] + q1[1] * q2[0] + q1[2] * q2[3] - q1[3] * q2[2],
+        q1[0] * q2[2] - q1[1] * q2[3] + q1[2] * q2[0] + q1[3] * q2[1],
+        q1[0] * q2[3] + q1[1] * q2[2] - q1[2] * q2[1] + q1[3] * q2[0]];
 
     }
 
     // Utility function that transforms a given quaternion q to a Rotation Matrix R
     quaternion2matrix(q) {
         // q = [w, x, y, z]
-        return math.matrix([[1 - 2*(q[2]*q[2] + q[3]*q[3]),      2*(q[1]*q[2] - q[0]*q[3]),          2*(q[1]*q[3] + q[0]*q[2])], 
-                            [2*(q[1]*q[2] + q[0]*q[3]),      1 - 2*(q[1]*q[1] + q[3]*q[3]),          2*(q[2]*q[3] - q[0]*q[1])], 
-                            [2*(q[1]*q[3] - q[0]*q[2]),          2*(q[2]*q[3] + q[0]*q[1]),      1 - 2*(q[1]*q[1] + q[2]*q[2])]]);
+        return math.matrix([[1 - 2 * (q[2] * q[2] + q[3] * q[3]), 2 * (q[1] * q[2] - q[0] * q[3]), 2 * (q[1] * q[3] + q[0] * q[2])],
+        [2 * (q[1] * q[2] + q[0] * q[3]), 1 - 2 * (q[1] * q[1] + q[3] * q[3]), 2 * (q[2] * q[3] - q[0] * q[1])],
+        [2 * (q[1] * q[3] - q[0] * q[2]), 2 * (q[2] * q[3] + q[0] * q[1]), 1 - 2 * (q[1] * q[1] + q[2] * q[2])]]);
     }
 
     // Utility Function that transforms given rpy angles to its corresponding quaternion
     rpy2quaternion(r, p, y) {
-        let qx = math.sin(r/2) * math.cos(p/2) * math.cos(y/2) - math.cos(r/2) * math.sin(p/2) * math.sin(y/2);
-        let qy = math.cos(r/2) * math.sin(p/2) * math.cos(y/2) + math.sin(r/2) * math.cos(p/2) * math.sin(y/2);
-        let qz = math.cos(r/2) * math.cos(p/2) * math.sin(y/2) - math.sin(r/2) * math.sin(p/2) * math.cos(y/2);
-        let qw = math.cos(r/2) * math.cos(p/2) * math.cos(y/2) + math.sin(r/2) * math.sin(p/2) * math.sin(y/2);
+        r = r * this.dt;
+        p = p * this.dt
+        y = y * this.dt;
+
+        let qx = math.sin(r / 2) * math.cos(p / 2) * math.cos(y / 2) - math.cos(r / 2) * math.sin(p / 2) * math.sin(y / 2);
+        let qy = math.cos(r / 2) * math.sin(p / 2) * math.cos(y / 2) + math.sin(r / 2) * math.cos(p / 2) * math.sin(y / 2);
+        let qz = math.cos(r / 2) * math.cos(p / 2) * math.sin(y / 2) - math.sin(r / 2) * math.sin(p / 2) * math.cos(y / 2);
+        let qw = math.cos(r / 2) * math.cos(p / 2) * math.cos(y / 2) + math.sin(r / 2) * math.sin(p / 2) * math.sin(y / 2);
 
         return [qw, qx, qy, qz];
     }
 
     // Utility Function that calculates Quaternion based on Gyro Readings
-    quaternionFromGyro( gyroscopeDataObj ) {
-        let omega = [gyroscopeDataObj.x * math.pi/180, gyroscopeDataObj.y * math.pi/180, gyroscopeDataObj.z * math.pi/180];
+    quaternionFromGyro(gyroscopeDataObj) {
+        // let omega = [gyroscopeDataObj.x * math.pi/180, gyroscopeDataObj.y * math.pi/180, gyroscopeDataObj.z * math.pi/180];
+        let omega = [gyroscopeDataObj.x, gyroscopeDataObj.y, gyroscopeDataObj.z];
         let theta = math.norm(omega) * this.dt;
 
         let dw = (math.norm(omega) == 0) ? [0, 0, 0] : omega.map((v) => v / math.norm(omega));
-        let dq = [math.cos(theta/2), dw[0] * math.sin(theta/2), dw[1] * math.sin(theta/2), dw[2] * math.sin(theta/2)];
-
-        // console.log(`attitude = ${this.attitude}`);
-        // console.log(`dq = ${dq}`);
+        let dq = [math.cos(theta / 2), dw[0] * math.sin(theta / 2), dw[1] * math.sin(theta / 2), dw[2] * math.sin(theta / 2)];
 
         return this.quaternionMulti(dq, this.attitude);
     }
 
-    
+
     // State Prediction Function   
-    predict(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj, rotationMatrix) {
-        // this.RotationMatrix = this.quaternion2matrix(this.attitude);
-        this.RotationMatrix = rotationMatrix;
+    predict(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj, rotationMatrix, gyroBias) {
+        this.RotationMatrix = this.quaternion2matrix(this.attitude);
+        //this.RotationMatrix = rotationMatrix;
+        //this.gyroBias = math.multiply(math.pi/180, math.transpose([gyroBias]));
+        this.gyroBias = math.transpose([gyroBias]);
         let acc = [accelerometerDataObj.x, accelerometerDataObj.y, accelerometerDataObj.z];
 
         // Predict dp, dv, da 
@@ -285,16 +293,16 @@ export class nav3{
         accW.data.z.length < WINDOW ? varAZ = 0 : varAZ = math.variance(accW.data.z);
 
         let accFlag = varAZ < ZUPT_VAR_ACC_THRESH;
-        if(accFlag) {
+        if (accFlag) {
             this.dv = this.velocity;
-            this.lastStepVel = math.zeros(3,1);
+            this.lastStepVel = math.zeros(3, 1);
             console.log(`STANDING ${DEBUG_1}`);
             return true;
         } else {
             console.log(`WALKING ${DEBUG_1}`);
             return false;
         }
-    }   
+    }
 
     /*  ZERO ANGULAR RATE UPDATE  
         This judgement module recognizes whether the user makes a turn or not 
@@ -309,8 +317,8 @@ export class nav3{
     */
     SDUP() {
         let K = 0;
-        for(let i=0; i<SDUP_Z_LP.length - 1; i++) {
-            if(SDUP_Z_LP[i] > SDUP_ACC_THRESHOLD && !SDUP_STEP_DETECTED){
+        for (let i = 0; i < SDUP_Z_LP.length - 1; i++) {
+            if (SDUP_Z_LP[i] > SDUP_ACC_THRESHOLD && !SDUP_STEP_DETECTED) {
                 SDUP_STEP_DETECTED = true;
                 SDUP_TIMEOUT = 0;
 
@@ -318,34 +326,34 @@ export class nav3{
                 SDUP_MIN = 100;
             }
 
-            if(SDUP_STEP_DETECTED){
+            if (SDUP_STEP_DETECTED) {
                 SDUP_MAX = math.max(SDUP_MAX, SDUP_Z_LP[i]);
                 SDUP_MIN = math.min(SDUP_MIN, SDUP_Z_LP[i]);
 
-                if(SDUP_Z_LP[i] > 0 && SDUP_Z_LP[i+1] < 0) {
+                if (SDUP_Z_LP[i] > 0 && SDUP_Z_LP[i + 1] < 0) {
                     SDUP_ZERO_CROSS = true;
                 }
 
-                if((SDUP_Z_LP[i+1] > 0 && SDUP_ZERO_CROSS) || SDUP_TIMEOUT > SDUP_MAX_TIME){
+                if ((SDUP_Z_LP[i + 1] > 0 && SDUP_ZERO_CROSS) || SDUP_TIMEOUT > SDUP_MAX_TIME) {
                     SDUP_STEP_DETECTED = false;
                     SDUP_ZERO_CROSS = false;
 
-                    if(SDUP_MAX + math.abs(SDUP_MIN) > 4.5) {
+                    if (SDUP_MAX + math.abs(SDUP_MIN) > 4.5) {
                         K = 0.7;
                     } else {
                         K = 0.579;
                     }
-                    
+
                     STEP_COUNTER++;
                     STEP_ARRAY[STEP_COUNTER - 1] = K * math.nthRoot(SDUP_MAX + math.abs(SDUP_MIN), 4);
-                    this.lastStepVel.set([1,0], STEP_ARRAY[STEP_COUNTER - 1] / SDUP_TIMEOUT);
-                    SDUP_Z_LP.splice(0,i+1);
+                    this.lastStepVel.set([1, 0], STEP_ARRAY[STEP_COUNTER - 1] / SDUP_TIMEOUT);
+                    SDUP_Z_LP.splice(0, i + 1);
                     console.log(`STEP_ARRAY = ${STEP_ARRAY}`);
                     console.log(`nr of steps: ${STEP_COUNTER}   \t len = ${math.sum(STEP_ARRAY)}`);
 
                     // Update State Error Variables
-                    this.dp = math.subtract(this.position, math.add(this.lastStepPos, math.multiply(this.lastStepRot, math.matrix([[0],[STEP_ARRAY[STEP_COUNTER - 1]],[0]]))));
-                    // this.dv = math.subtract(this.velocity, math.multiply(this.RotationMatrix, this.lastStepVel));
+                    this.dp = math.subtract(this.position, math.add(this.lastStepPos, math.multiply(this.lastStepRot, math.matrix([[0], [STEP_ARRAY[STEP_COUNTER - 1]], [0]]))));
+                    this.dv = math.subtract(this.velocity, math.multiply(this.lastStepRot, this.lastStepVel));
 
                     return true;
                 }
@@ -355,8 +363,8 @@ export class nav3{
         }
         SDUP_STEP_DETECTED = false;
         SDUP_ZERO_CROSS = false;
-        
-        this.dv = math.subtract(math.subtract(this.velocity, math.multiply(this.lastStepRot, this.lastStepVel)), math.multiply(this.RotationMatrix, this.skewSymmetric([this.velocity.get([0,0]), this.velocity.get([1,0]), this.velocity.get([0,0])]), this.da)); 
+
+        this.dv = math.subtract(this.velocity, math.multiply(this.lastStepRot, this.lastStepVel));
         return false;
     }
 
@@ -368,18 +376,24 @@ export class nav3{
         let gyro = math.matrix([[gyroscopeDataObj.x], [gyroscopeDataObj.y], [gyroscopeDataObj.z]]);
         let mag = math.matrix([[magnetometerDataObj.x], [magnetometerDataObj.y], [magnetometerDataObj.z]]);
 
-        let rotAccObj = {x: math.multiply(this.RotationMatrix, acc).get([0,0]),
-                         y: math.multiply(this.RotationMatrix, acc).get([1,0]),
-                         z: math.multiply(this.RotationMatrix, acc).get([2,0])};
+        let rotAccObj = {
+            x: math.multiply(this.RotationMatrix, acc).get([0, 0]),
+            y: math.multiply(this.RotationMatrix, acc).get([1, 0]),
+            z: math.multiply(this.RotationMatrix, acc).get([2, 0])
+        };
 
-        let rotGyroObj = {x: math.multiply(this.RotationMatrix, gyro).get([0,0]),
-                          y: math.multiply(this.RotationMatrix, gyro).get([1,0]),
-                          z: math.multiply(this.RotationMatrix, gyro).get([2,0])};
+        let rotGyroObj = {
+            x: math.multiply(this.RotationMatrix, gyro).get([0, 0]),
+            y: math.multiply(this.RotationMatrix, gyro).get([1, 0]),
+            z: math.multiply(this.RotationMatrix, gyro).get([2, 0])
+        };
 
-        let rotMagObj = {x: math.multiply(this.RotationMatrix, mag).get([0,0]),
-                         y: math.multiply(this.RotationMatrix, mag).get([1,0]),
-                         z: math.multiply(this.RotationMatrix, mag).get([2,0])};
-        
+        let rotMagObj = {
+            x: math.multiply(this.RotationMatrix, mag).get([0, 0]),
+            y: math.multiply(this.RotationMatrix, mag).get([1, 0]),
+            z: math.multiply(this.RotationMatrix, mag).get([2, 0])
+        };
+
         // Data Window length check
         let lenAcc = this.accWindow.length();
         let lenGyro = this.gyroWindow.length();
@@ -390,12 +404,12 @@ export class nav3{
         let lenRotMag = this.rotMagWindow.length();
 
         let lenCheck = (lenAcc === lenRotAcc) && (lenGyro === lenRotGyro)
-                    && (lenMag === lenRotMag) && (lenAcc === lenGyro) 
-                    && (lenRotAcc === lenRotMag);
+            && (lenMag === lenRotMag) && (lenAcc === lenGyro)
+            && (lenRotAcc === lenRotMag);
 
         if (lenCheck) {
             // PUSH NEW DATA TO HISTORY ARRAYS 
-            if(lenAcc < WINDOW) {
+            if (lenAcc < WINDOW) {
                 this.accWindow.push(accelerometerDataObj);
                 this.gyroWindow.push(gyroscopeDataObj);
                 this.magWindow.push(magnetometerDataObj);
@@ -430,7 +444,7 @@ export class nav3{
     judge(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj) {
         // SAVE DATA HISTORY WINDOWS
         this.prepDataHistory(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj);
-        
+
         // Flag object to pass on update 
         let judgeFlagObj = {
             zemu: false,
@@ -439,14 +453,14 @@ export class nav3{
 
         // ZERO VELOCITY UPDATE 
         judgeFlagObj.zemu = this.ZEMU();
-        
+
         // ZERO ANGULAR RATE UPDATE
-    
+
         // IF USER IS WALKING, CHECK FOR STEPS 
-        if(!judgeFlagObj.zemu){
+        if (!judgeFlagObj.zemu) {
             // STEP DETECTION AND LENGTH/VELOCITY EXTRACTION 
             judgeFlagObj.sdup = this.SDUP();
-            
+
         }
 
         return judgeFlagObj;
@@ -459,9 +473,11 @@ export class nav3{
 
         // Update State Variables 
         // Attitude
-        this.attitude = this.quaternionFromGyro(gyroscopeDataObj);
+        let varQ = this.rpy2quaternion(gyroscopeDataObj.x, gyroscopeDataObj.y, gyroscopeDataObj.z);
+        this.attitude = this.quaternionMulti(varQ, this.attitude);
+        //this.attitude = this.quaternionFromGyro(gyroscopeDataObj);
         // console.log(`quaternion From Gyro = ${this.attitude}`);
-        let errorQ = this.rpy2quaternion(this.da.get([0,0]), this.da.get([1,0]), this.da.get([2,0]));
+        let errorQ = this.rpy2quaternion(this.da.get([0, 0]), this.da.get([1, 0]), this.da.get([2, 0]));
         this.attitude = this.quaternionMulti(errorQ, this.attitude);
 
         // Update Rotations
@@ -479,17 +495,23 @@ export class nav3{
         console.log(`this.velocity = ${this.velocity}`);
         // Satisfied modules 
         // Flags = [zemu, sdup];
-        if(judgeFlagsObj.sdup){
+        if (judgeFlagsObj.sdup) {
             this.lastStepPos = this.position;
             this.lastStepRot = this.RotationMatrix;
         }
+
+        this.POSITION_HISTORY.push({
+            x: this.position.get([0, 0]),
+            y: this.position.get([1, 0]),
+            z: this.position.get([2, 0])
+        });
     }
 
     // The Extended Kalman Filter "main" function
-    runEKF(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj, rotationMatrix) {
+    runEKF(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj, rotationMatrix, gyroBias) {
 
         // Predict the State Error values
-        this.predict(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj, rotationMatrix);
+        this.predict(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj, rotationMatrix, gyroBias);
         // For each sensor input, judge the state of User and return the modules that are satisfied
         let judgeFlagsObj = this.judge(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj);
         // After Judgement
