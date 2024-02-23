@@ -58,8 +58,8 @@ export default PDRApp = () => {
 
                 setDeviceSub(DeviceMotion.addListener((data) => {
 
-                    dataBuffer.current[0] = data.accelerationIncludingGravity;              
-                    dataBuffer.current[1] = data.acceleration;                              
+                    dataBuffer.current[0] = data.accelerationIncludingGravity;              // AccelerometerData in g
+                    dataBuffer.current[1] = data.acceleration;                              // Accelerometer Data in m/s^2
                     
                     if(dataBuffer.current.every((v) => mathjs.isNull(v) == false)) {
                         update();                     
@@ -68,7 +68,7 @@ export default PDRApp = () => {
 
                 Gyroscope.addListener((data) => {
 
-                    dataBuffer.current[2] = data;                                           // Angle Velocity in 3-axis in deg/s 
+                    dataBuffer.current[2] = data;                                           // Angle Velocity in 3-axis in deg/s !!!!!!!!!!!!!!!MAYBE RAD/S!!!!!!!!!!!!!!!
                     if(dataBuffer.current.every((v) => mathjs.isNull(v) == false)) {
                         update();
                     }
@@ -196,7 +196,6 @@ export default PDRApp = () => {
     // Playback Function designed to run tests from existing Data
     const playback  = async () => {
        
-        let posMat = mathjs.matrix([[null, null, null]]);
         // Clear Application
         _clear();
 
@@ -227,11 +226,7 @@ export default PDRApp = () => {
                 gyroscopeData.pushData(gyroObj);
                 magnetometerData.pushData(magObj);
 
-                attEst.update(accWGObj, gyroObj, magObj);
-
-                // navEKF.update(rotMat, accObj, gyroObj, magObj);
-
-                nav3EKF.runEKF(accWGObj, gyroObj, magObj, attEst.getRotationMatrix(), attEst.Bias);
+                nav3EKF.runEKF(accWGObj, gyroObj, magObj);
             }
 
             alert("Playback Finished");
