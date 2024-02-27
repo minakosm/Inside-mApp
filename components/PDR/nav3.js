@@ -374,10 +374,8 @@ export class nav3 {
             this.lastStepVel = math.zeros(3, 1);
             //this.gyroBias = math.zeros(3, 1);
 
-            console.log(`STANDING ${DEBUG_1}`);
             return true;
         } else {
-            console.log(`WALKING ${DEBUG_1}`);
             return false;
         }
     }
@@ -413,9 +411,11 @@ export class nav3 {
         . This module is enabled while ZEMU returns false 
     */
     URU(walkingFlag) {
+        
+        let gyroW = JSON.parse(JSON.stringify(this.gyroWindow));
 
         if(walkingFlag) {
-            URU_BIAS = math.mean(URU_BIAS, math.mean(URU_G_LP.slice(URU_G_LP.length - WINDOW)));
+            // URU_BIAS = math.mean(URU_BIAS, math.mean(URU_G_LP.slice(URU_G_LP.length - WINDOW)));
             // URU_BIAS = math.mean(URU_BIAS, ...URU_G_LP.slice(URU_G_LP.length - WINDOW));
             URU_INIT_STAND = false;
             if (!URU_RESET) {
@@ -441,7 +441,7 @@ export class nav3 {
         }
 
         if(!walkingFlag && !URU_INIT_STAND) {
-            URU_GYRO_SUM += (URU_G_LP[URU_G_LP.length-1] - URU_BIAS) * this.dt;
+            URU_GYRO_SUM = (math.variance(gyroW.data.z) > 0.125) ? URU_GYRO_SUM + URU_G_LP[URU_G_LP.length-1] * this.dt : URU_GYRO_SUM;
             URU_RESET = false;
         }
     }
@@ -502,7 +502,7 @@ export class nav3 {
         SDUP_STEP_DETECTED = false;
         SDUP_ZERO_CROSS = false;
 
-        this.dv = SDUP_TIMEOUT < 0.55 ? math.subtract(this.velocity, math.multiply(this.lastStepRot, this.lastStepVel)) : this.velocity;
+        this.dv = SDUP_TIMEOUT < 0.6 ? math.subtract(this.velocity, math.multiply(this.lastStepRot, this.lastStepVel)) : this.velocity;
 
         return false;
     }
