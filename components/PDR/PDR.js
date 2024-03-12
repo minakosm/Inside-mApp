@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { StyleSheet, Text, View, Dimensions, AppState, TouchableOpacity, PermissionsAndroid } from "react-native";
 
+// Import Canvas
+import Canvas from "react-native-canvas";
+
 // Import Sensor Related Libraries
 import { Gyroscope, Magnetometer, DeviceMotion, MagnetometerUncalibrated} from "expo-sensors";
 import { SensorData } from "../utils/SensorData";
@@ -37,8 +40,6 @@ export default PDRApp = () => {
     const [clear, setClear] = useState(true);
 
     const [deviceSub, setDeviceSub] = useState();
-    
-    const [eulerAngles, setEulerAngles] = useState([0,0,0]);
 
     const isFirstRender = useRef(true);
     const isFirstCall = useRef(true);
@@ -98,12 +99,6 @@ export default PDRApp = () => {
         _unsubscribe();
         setClear(true);
 
-        setEulerAngles(() => {
-            attEst.reset();
-            return attEst.getEulerAngles();
-        })
-
-        navEKF.reset();
         nav3EKF.reset();
 
         accelerometerData.clear();
@@ -114,7 +109,6 @@ export default PDRApp = () => {
         isFirstCall.current = true;
         isFirstRender.current = true;
         dataBuffer.current = [null, null, null, null];
-
     }
 
     const update = () => {
@@ -122,8 +116,7 @@ export default PDRApp = () => {
         let temp = Date.now();
         let dt = (temp - TIMESTAMP) / 1000 // in sec
         TIMESTAMP = temp;
-        attEst.setSamplePeriod(dt);
-        navEKF.setSamplePeriod(dt);
+        nav3EKF.setDt(dt);
 
         // Get Data from buffer
         accObj = dataBuffer.current[0];
@@ -134,7 +127,7 @@ export default PDRApp = () => {
         // Clear buffer
         dataBuffer.current = [null, null, null, null];
 
-        if (navEKF.SamplePeriod < 0 ) { console.log(`\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!`) ;} 
+        if (nav3EKF.SamplePeriod < 0 ) { console.log(`\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!`) ;} 
 
         // Store Data in SensorData objects
         accelerometerData.pushData(accObj);
@@ -146,16 +139,8 @@ export default PDRApp = () => {
         gyroscopeData.pushData(gyroObj);
         magnetometerData.pushData(magObj);
 
-        // Attitude Estimation Kalman Filter
-        attEst.update(accObj, gyroObj, magObj);
-
-        // Get rotations of smartphone Device
-        // Refresh angles on Device
-        setEulerAngles(attEst.getEulerAngles());
-
-        let bodyToGlobal = attEst.getRotationMatrix();
         // Navigation Kalman Filter
-        // navEKF.update(bodyToGlobal, accWGObj, gyroObj, magObj);
+        nav3EKF.runEKF(accWGObj, gyroObj, magObj);
     }
 
     // Save Function to store localy a Data File from current Session
@@ -195,7 +180,6 @@ export default PDRApp = () => {
 
     // Playback Function designed to run tests from existing Data
     const playback  = async () => {
-       
         // Clear Application
         _clear();
 
@@ -205,7 +189,7 @@ export default PDRApp = () => {
         // store Data from File
         console.log(JSON.stringify(result));
         if(!result.canceled) {
-            const [accAssetObj, gyroAssetObj, magAssetObj, , accWGAssetObj] = await FileSystem.readAsStringAsync(result.assets[0].uri).then((res) => JSON.parse(res));
+            const [accAssetObj, gyroAssetObj, magAssetObj, accWGAssetObj] = await FileSystem.readAsStringAsync(result.assets[0].uri).then((res) => JSON.parse(res));
 
             // Start Executing the Playback
             // Configure Sample Period 
@@ -237,6 +221,15 @@ export default PDRApp = () => {
         setStart(false);
         
     }
+    
+    const handleCanvas = (canvas) => {
+        if(!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'green';
+        ctx.fillRect(0, 0, 300, 50);
+    }
+
 
     useEffect(() => {
         if(isFirstRender.current){
@@ -257,22 +250,7 @@ export default PDRApp = () => {
             <View style={{ marginVertical: 15}}>
                 <Text>Sensor measurements: {accelerometerData.x.length}</Text>
             </View>
-            { <View style={{ marginVertical: 15 }}>
-                <Text>Orientation</Text>
-                <Text>roll: {eulerAngles[2].toFixed(3)}</Text>
-                <Text>pitch: {eulerAngles[1].toFixed(3)}</Text>
-                <Text>yaw: {eulerAngles[0].toFixed(3)}</Text>
-            </View> }
-            {/* <View style = {{marginVertical: 10}}>
-            <Text>Step Count : {navEKF.stepCount}</Text>
 
-            <Text>Step Length</Text>
-            <Text>sum: {JSON.stringify(mathjs.sum(navEKF.stepLength))}</Text>
-            </View>
-            <View style={{ marginVertical: 15}}>
-                <Text>Position measurements: {navEKF.xPosHistory.length}</Text>
-                <Text>x: {navEKF.xPosHistory[navEKF.xPosHistory.length-1].toFixed(3)} y: {navEKF.yPosHistory[navEKF.yPosHistory.length-1].toFixed(3)}</Text>
-            </View> */}
             <View style={styles.buttonContainer}>
                 <TouchableOpacity onPress={start ? _unsubscribe : _subscribe} style={styles.button}>
                     <Text style={start? {color: 'red'} : {color: 'green'}}>{!start ? 'START' : 'STOP'}</Text>
@@ -289,8 +267,9 @@ export default PDRApp = () => {
                 <TouchableOpacity onPress={playback} style={styles.button}>
                     <Text>{"PLAYBACK"}</Text>
                 </TouchableOpacity>
-            </View>
+            </View> 
 
+            <Canvas ref = {handleCanvas}/>
         </View>
     );
 }

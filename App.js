@@ -14,7 +14,7 @@
   Unpublished Work © 2023 Minas Kosmidis
 */
 
-import React, { useState } from 'react';
+import React, { Component, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, ViewBase,} from 'react-native';
 import Button from './components/utils/Button';
@@ -39,6 +39,7 @@ export default function App() {
 
   );
 }
+
 
 const styles = StyleSheet.create({
   logo: {

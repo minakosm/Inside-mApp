@@ -34,7 +34,15 @@ const URU_ANGLE_THRESH = 11.5 * (math.pi / 180);                    // ANGLE CHA
 let URU_RESET = true;
 let URU_INIT_STAND = true;
 let URU_GYRO_SUM = 0;
-let URU_BIAS = 0;
+
+// //////////////////////////////////////////////////////////////
+const URU_TURN_BUFFER = [];
+const URU_ANGLES = [-90, -45, 0, 45, 90];
+const URU_VAR_THRESH = 0.01;
+
+
+let URU_IN_TURN = false;
+let URU_TIMEOUT = 0;
 //==============================================================================================================//
 
 // Object of Arrays 
@@ -49,6 +57,14 @@ class DataHistory {
 
     get() {
         return this.data;
+    }
+
+    getLast() {
+        let _x = this.data.x.at(-1);
+        let _y = this.data.y.at(-1);
+        let _z = this.data.z.at(-1);
+        
+        return {x: _x, y: _y, z: _z}
     }
 
     // Has to be an Object of x,y,z Arrays
@@ -413,6 +429,7 @@ export class nav3 {
     URU(walkingFlag) {
         
         let gyroW = JSON.parse(JSON.stringify(this.gyroWindow));
+        let magW = JSON.parse(JSON.stringify(this.magWindow));
 
         if(walkingFlag) {
             // URU_BIAS = math.mean(URU_BIAS, math.mean(URU_G_LP.slice(URU_G_LP.length - WINDOW)));
@@ -422,11 +439,11 @@ export class nav3 {
                 URU_RESET = true;
                 console.log(`\n====================================================================================================`);
                 console.log(`\n\nURU ROTATION = ${URU_GYRO_SUM * (180/math.pi)}`);
-
                 URU_GYRO_SUM = math.abs(URU_GYRO_SUM) < URU_ANGLE_THRESH ? 0 : URU_GYRO_SUM;
                 URU_GYRO_SUM = math.abs(URU_GYRO_SUM - math.sign(URU_GYRO_SUM) * math.pi/2) < URU_ANGLE_THRESH ? math.sign(URU_GYRO_SUM) * math.pi/2 : URU_GYRO_SUM;
-
-                 console.log(`\n\nURU ROTATION change = ${(URU_GYRO_SUM + this.quaternion2rpy(this.lastStepAtt)[2]) * (180/math.pi)}`);
+                URU_GYRO_SUM = math.abs(URU_GYRO_SUM) > math.pi/2 ? math.sign(URU_GYRO_SUM) * math.pi/2 : URU_GYRO_SUM;
+                
+                console.log(`\n\nURU ROTATION update = ${(URU_GYRO_SUM + this.quaternion2rpy(this.lastStepAtt)[2]) * (180/math.pi)}`);
 
                 this.lastStepAtt = this.rpy2quaternion(0 , 0, this.quaternion2rpy(this.lastStepAtt)[2] + URU_GYRO_SUM);
                 this.lastStepRot = this.quaternion2matrix(this.lastStepAtt);
@@ -441,9 +458,52 @@ export class nav3 {
         }
 
         if(!walkingFlag && !URU_INIT_STAND) {
-            URU_GYRO_SUM = (math.variance(gyroW.data.z) > 0.125) ? URU_GYRO_SUM + URU_G_LP[URU_G_LP.length-1] * this.dt : URU_GYRO_SUM;
+            URU_GYRO_SUM = (math.variance(this.gyroWindow.data.z) > 0.125) ? URU_GYRO_SUM + URU_G_LP[URU_G_LP.length-1] * this.dt : URU_GYRO_SUM;
             URU_RESET = false;
         }
+    }
+
+    URU_V2() {
+        let varSq = URU_G_LP.map((v) => v*v).slice(-WINDOW);
+        let turnFlag = math.variance(varSq) > URU_VAR_THRESH;
+
+        if(turnFlag) {
+            URU_IN_TURN = true;
+            URU_TIMEOUT += this.dt;
+            URU_TURN_BUFFER.push(URU_G_LP.slice(-1));
+        }
+
+        if(!turnFlag && URU_IN_TURN && URU_TIMEOUT >= 0.6) {
+            URU_IN_TURN = false;
+            let m = math.mean(...URU_TURN_BUFFER) * URU_TIMEOUT;
+            
+            let peak = URU_TURN_BUFFER.find((value) => {
+                if (math.abs(value) == math.max(math.abs(URU_TURN_BUFFER))) {return value}
+            });
+
+            let theta = math.mean(m, peak) * 180/math.pi;
+            let d = 360;
+            let angle = 0;
+            for(let i=0; i<URU_ANGLES.length; i++) {
+                if (math.abs(URU_ANGLES[i] - theta) < d) {
+                    d = abs(URU_ANGLES[i] - theta);
+                    angle = URU_ANGLES[i];
+                }
+            }
+            
+            this.lastStepAtt = this.rpy2quaternion(0 , 0, this.quaternion2rpy(this.lastStepAtt)[2] + angle);
+            this.lastStepRot = this.quaternion2matrix(this.lastStepAtt);
+
+            URU_TURN_BUFFER.splice(0, URU_TURN_BUFFER.length);
+            URU_TIMEOUT = 0;
+        }
+
+        if(!turnFlag && URU_IN_TURN && URU_TIMEOUT < 0.3) {
+            URU_TIMEOUT = 0;
+            URU_IN_TURN = false;
+            URU_TURN_BUFFER.splice(0, URU_TURN_BUFFER.length);
+        }
+       
     }
 
     /* STEP DETECTION AND UPDATE  
@@ -485,7 +545,7 @@ export class nav3 {
                     STEP_ARRAY[STEP_COUNTER - 1] = K * math.nthRoot(SDUP_MAX + math.abs(SDUP_MIN), 4);
                     this.lastStepVel.set([1, 0], STEP_ARRAY[STEP_COUNTER - 1] / SDUP_TIMEOUT);
                     SDUP_Z_LP.splice(0, i);
-                    console.log(`STEP_ARRAY = ${STEP_ARRAY}`);
+                    //console.log(`STEP_ARRAY = ${STEP_ARRAY}`);
                     console.log(`nr of steps: ${STEP_COUNTER}   \t len = ${math.sum(STEP_ARRAY)}`);
 
                     // Update State Error Variables
@@ -646,8 +706,9 @@ export class nav3 {
         this.position = math.add(this.position, math.multiply(this.velocity, this.dt));
         this.position = math.subtract(this.position, this.dp);
 
-        console.log(`this.position = ${this.position}`);
-        console.log(`this.velocity = ${this.velocity}`);
+        // console.log(`this.position = ${this.position}`);
+        // console.log(`this.velocity = ${this.velocity}`);
+
         // Satisfied modules 
         // Flags = [zemu, sdup];
         if (judgeFlagsObj.sdup) {
