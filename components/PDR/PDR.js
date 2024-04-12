@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
-import { StyleSheet, Text, View, Dimensions, AppState, TouchableOpacity, PermissionsAndroid } from "react-native";
+import { StyleSheet, Text, View, Dimensions, AppState, TouchableOpacity, PermissionsAndroid, Alert } from "react-native";
 
 // Import Canvas
-import Canvas from "react-native-canvas";
+// import Canvas from "react-native-canvas";
+import { Canvas, Group, Circle, Rect, Skia, Path, useValue, useComputedValue } from "@shopify/react-native-skia";
 
 // Import Sensor Related Libraries
-import { Gyroscope, Magnetometer, DeviceMotion, MagnetometerUncalibrated} from "expo-sensors";
+import { Gyroscope, Magnetometer, DeviceMotion } from "expo-sensors";
 import { SensorData } from "../utils/SensorData";
 
 // Math Library
-import * as mathjs from "mathjs";
+import * as math from "mathjs";
 
 // File Manipulation Libraries
 import * as FileSystem from 'expo-file-system';
@@ -17,9 +18,8 @@ import * as DocumentPicker from 'expo-document-picker';
 const { StorageAccessFramework } = FileSystem;
 
 // Custom Modules 
-import { AttitudeEstimator } from "./AttitudeEstimation";
-import { NavigationEKF } from "./NavigationEKF";
 import { nav3 } from "./nav3";
+import Button from "../utils/Button";
 
 const _freqUpdate = 20; // 50 ms sample period from motion sensors
 
@@ -28,12 +28,14 @@ const accelerationWithoutGravity = new SensorData();
 const gyroscopeData = new SensorData();
 const magnetometerData = new SensorData();
 
-const attEst = new AttitudeEstimator();
-const navEKF = new NavigationEKF()
 const nav3EKF = new nav3();
 
 TIMESTAMP = Date.now();
-let _t = 0;
+
+const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
+const PATH = Skia.Path.Make();
+PATH.moveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
+
 export default PDRApp = () => {
 
     const [start, setStart] = useState(false);
@@ -41,8 +43,6 @@ export default PDRApp = () => {
 
     const [deviceSub, setDeviceSub] = useState();
 
-    const isFirstRender = useRef(true);
-    const isFirstCall = useRef(true);
     const dataBuffer = useRef([null, null, null, null]);
 
     const _subscribe = () => {
@@ -62,7 +62,7 @@ export default PDRApp = () => {
                     dataBuffer.current[0] = data.accelerationIncludingGravity;              // AccelerometerData in g
                     dataBuffer.current[1] = data.acceleration;                              // Accelerometer Data in m/s^2
                     
-                    if(dataBuffer.current.every((v) => mathjs.isNull(v) == false)) {
+                    if(dataBuffer.current.every((v) => math.isNull(v) == false)) {
                         update();                     
                     }
                 }));
@@ -70,7 +70,7 @@ export default PDRApp = () => {
                 Gyroscope.addListener((data) => {
 
                     dataBuffer.current[2] = data;                                           // Angle Velocity in 3-axis in deg/s !!!!!!!!!!!!!!!MAYBE RAD/S!!!!!!!!!!!!!!!
-                    if(dataBuffer.current.every((v) => mathjs.isNull(v) == false)) {
+                    if(dataBuffer.current.every((v) => math.isNull(v) == false)) {
                         update();
                     }
                 });
@@ -78,7 +78,7 @@ export default PDRApp = () => {
                 Magnetometer.addListener((data) => {    
 
                     dataBuffer.current[3] = data;                                           // Magnetic Field Measurments in 3-axis, in uT         
-                    if(dataBuffer.current.every((v) => mathjs.isNull(v) == false)) {
+                    if(dataBuffer.current.every((v) => math.isNull(v) == false)) {
                         update();
                     }
                 })
@@ -97,7 +97,6 @@ export default PDRApp = () => {
 
     const _clear = () => {
         _unsubscribe();
-        setClear(true);
 
         nav3EKF.reset();
 
@@ -106,9 +105,24 @@ export default PDRApp = () => {
         gyroscopeData.clear();
         magnetometerData.clear();
 
-        isFirstCall.current = true;
-        isFirstRender.current = true;
         dataBuffer.current = [null, null, null, null];
+
+        pathTransformation.current = ([
+            {scaleX: 1},
+            {scaleY: 1},
+            {translateX: 0},
+            {translateY: 0}
+        ]);
+        
+        SQUARES_AMOUNT_HORIZONTAL.current = math.floor(sc/pathTransformation.current[0].scaleX);
+        SQUARES_AMOUNT_VERTICAL.current = math.floor(sc/pathTransformation.current[1].scaleY);
+        SQUARE_CONTAINER_SIZE.current = SCREEN_WIDTH / SQUARES_AMOUNT_HORIZONTAL.current;
+        SQUARE_SIZE.current = SQUARE_CONTAINER_SIZE.current - 0.5;
+
+        PATH.reset();
+        PATH.moveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
+
+        setClear(true);
     }
 
     const update = () => {
@@ -133,14 +147,17 @@ export default PDRApp = () => {
         accelerometerData.pushData(accObj);
         accelerationWithoutGravity.pushData(accWGObj);
 
-        accelerationWithoutGravity.pushTimestamp(dt);
-        accelerometerData.pushTimestamp(dt);
-
         gyroscopeData.pushData(gyroObj);
         magnetometerData.pushData(magObj);
 
         // Navigation Kalman Filter
-        nav3EKF.runEKF(accWGObj, gyroObj, magObj);
+        let updatePath = nav3EKF.runEKF(accWGObj, gyroObj, magObj);
+
+        if(updatePath) {
+            let lastPosObj = {x: nav3EKF.POSITION_HISTORY.data.x.slice(-1), y: nav3EKF.POSITION_HISTORY.data.y.slice(-1)};
+            handlePath(lastPosObj);
+        }
+
     }
 
     // Save Function to store localy a Data File from current Session
@@ -154,11 +171,11 @@ export default PDRApp = () => {
           let directoryUri = permissions.directoryUri;
 
           let DATA = [
-            {name: "acc", size: accelerometerData.x.length, data:{x: accelerometerData.x, y: accelerometerData.y, z: accelerometerData.z}, timestamp: accelerometerData.t}, 
+            {name: "acc", size: accelerometerData.x.length, data:{x: accelerometerData.x, y: accelerometerData.y, z: accelerometerData.z}}, 
             {name: "gyro", size: gyroscopeData.x.length, data:{x: gyroscopeData.x, y: gyroscopeData.y, z: gyroscopeData.z}},
             {name: "mag", size: magnetometerData.x.length, data:{x: magnetometerData.x, y: magnetometerData.y, z: magnetometerData.z}}, 
             // {name: "mag_rot", size: navEKF.xMagRotHistory.length, data:{x: navEKF.xMagRotHistory, y: navEKF.yMagRotHistory, z: navEKF.zMagRotHistory}}, 
-            {name: "acc_wg", size: accelerationWithoutGravity.x.length, data:{x: accelerationWithoutGravity.x, y: accelerationWithoutGravity.y, z: accelerationWithoutGravity.z}, timestamp: accelerationWithoutGravity.t},
+            {name: "acc_wg", size: accelerationWithoutGravity.x.length, data:{x: accelerationWithoutGravity.x, y: accelerationWithoutGravity.y, z: accelerationWithoutGravity.z}},
             // {name: "acc_rot", size: navEKF.xAccRotHistory.length, data:{x: navEKF.xAccRotHistory, y: navEKF.yAccRotHistory, z: navEKF.zAccRotHistory}},
             // {name: "vel", size: navEKF.xVelHistory.length, data:{x: navEKF.xVelHistory, y: navEKF.yVelHistory}},
             {name: "pos", size: nav3EKF.POSITION_HISTORY.length(), data:{x: nav3EKF.POSITION_HISTORY.data.x, y: nav3EKF.POSITION_HISTORY.data.y}}, 
@@ -194,7 +211,6 @@ export default PDRApp = () => {
             // Start Executing the Playback
             // Configure Sample Period 
             let samplePeriod = 1 / _freqUpdate;
-            attEst.setSamplePeriod(samplePeriod);       // TO BE FIXED (fixed Sample Period)
             nav3EKF.setDt(samplePeriod);                // TO BE FIXED
             for(let i=0; i< accWGAssetObj.size; i++) {
 
@@ -210,9 +226,13 @@ export default PDRApp = () => {
                 gyroscopeData.pushData(gyroObj);
                 magnetometerData.pushData(magObj);
 
-                nav3EKF.runEKF(accWGObj, gyroObj, magObj);
-            }
+                let updatePath = nav3EKF.runEKF(accWGObj, gyroObj, magObj);
 
+                if(updatePath) {
+                    let lastPosObj = {x: nav3EKF.POSITION_HISTORY.data.x.slice(-1), y: nav3EKF.POSITION_HISTORY.data.y.slice(-1)};
+                    handlePath(lastPosObj);
+                }
+            }
             alert("Playback Finished");
         } else {
             alert("You must pick a file to play back.");
@@ -221,30 +241,99 @@ export default PDRApp = () => {
         setStart(false);
         
     }
-    
-    const handleCanvas = (canvas) => {
-        if(!canvas) return;
 
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'green';
-        ctx.fillRect(0, 0, 300, 50);
+    const pathTransformation = useValue([
+        {scaleX: 1},
+        {scaleY: 1},
+        {translateX: 0},
+        {translateY: 0}
+    ]);
+    let sc = 5;
+    const MARGIN = 25;
+
+    //GRID 
+    const SQUARES_AMOUNT_HORIZONTAL = useComputedValue(() => {
+        return math.floor(sc/pathTransformation.current[0].scaleX);
+    }, [pathTransformation]);
+
+    const SQUARES_AMOUNT_VERTICAL = useComputedValue(() => {
+        return math.floor(sc/pathTransformation.current[1].scaleY);
+    },[pathTransformation]);
+
+    const SQUARE_CONTAINER_SIZE = useComputedValue(() => {
+        return SCREEN_WIDTH / SQUARES_AMOUNT_HORIZONTAL.current;
+    },[SQUARES_AMOUNT_HORIZONTAL.current])
+
+    const SQUARE_SIZE = useComputedValue(() => {
+        return SQUARE_CONTAINER_SIZE.current - 0.5;
+    }, [SQUARE_CONTAINER_SIZE.current]);
+
+
+    const handlePath = (lastPosObj) => {
+        // Scale Pixels/Meters
+        
+        let Wscale = SCREEN_WIDTH / sc;
+        let Hscale = SCREEN_HEIGHT / (2 * sc);
+
+        let px = lastPosObj.x * Wscale;
+        let py = lastPosObj.y * Hscale;
+
+        PATH.lineTo(SCREEN_WIDTH/2 + px, SCREEN_HEIGHT/4 - py);
+
+        console.log(`=======================================`);
+
+        let {x: xBound, y: yBound, width: wBound, height: hBound} = PATH.getBounds();
+
+        console.log(`X BOUND \t = \t ${xBound}`);
+        console.log(`Y BOUND \t = \t ${yBound}`);
+        console.log(`W BOUND \t = \t ${wBound}`);
+        console.log(`H BOUND \t = \t ${hBound}`);
+
+
+        let scX = pathTransformation.current[0].scaleX;
+        let scY = pathTransformation.current[1].scaleY;
+        let trX = pathTransformation.current[2].translateX;
+        let trY = pathTransformation.current[3].translateY; 
+
+        // SCALING
+        if(wBound > SCREEN_WIDTH  - MARGIN) {scX = SCREEN_WIDTH/(wBound + MARGIN);}
+        if(hBound > SCREEN_HEIGHT/2 - MARGIN) {scY = SCREEN_HEIGHT/(2*hBound + MARGIN);}
+
+        // TRANSLATING
+        // Center the path to the boundaries center
+        if(xBound + wBound >= SCREEN_WIDTH/scX - MARGIN/scX){
+            trX = -wBound/2;
+        } else if(xBound - wBound < trX) {
+            trX = wBound/2;
+        }
+
+        if(yBound + hBound >= SCREEN_HEIGHT/(2*scY) - MARGIN/scY){
+            trY = -hBound/2;
+        } else if(yBound - hBound < trY) {
+            trY = hBound/2;
+        }
+
+        console.log(`+++++++++++++++++++++++++++++++++++++++`);
+        console.log(`trX \t= \t ${trX}`);
+        console.log(`trY \t= \t ${trY}`);
+        console.log(`scX \t= \t ${scX}`);
+        console.log(`scY \t= \t ${scY}`);
+
+        pathTransformation.current = ([
+            {scaleX: scX},
+            {scaleY: scY},
+            {translateX: trX},
+            {translateY: trY}
+        ])
     }
 
-
     useEffect(() => {
-        if(isFirstRender.current){
-            isFirstRender.current = false;
-            return;
-        }
         _subscribe();
         return _clear();
     }, []);
 
     return (
-        <View style={{
-            marginVertical: 40,
-            alignItems: 'center'
-        }}>
+        <View style={styles.container}>
             <Text>PDR APP</Text>
             <Text>Running: {JSON.stringify(start)}</Text>
             <View style={{ marginVertical: 15}}>
@@ -267,14 +356,76 @@ export default PDRApp = () => {
                 <TouchableOpacity onPress={playback} style={styles.button}>
                     <Text>{"PLAYBACK"}</Text>
                 </TouchableOpacity>
-            </View> 
+            </View>
+            <View>
+                <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT/2, marginVertical: 10}}>
+                    {/* <Group>
+                        {new Array(SQUARES_AMOUNT_HORIZONTAL.current).fill(0).map((_, i) =>  {
+                            return new Array(SQUARES_AMOUNT_VERTICAL.current).fill(0).map((_, j)  => {
+                                return <Rect 
+                                    key={`(${i} , ${j})`}
+                                    x = {i * SQUARE_CONTAINER_SIZE.current - pathTransformation.current[2].translateX}
+                                    y = {j * SQUARE_CONTAINER_SIZE.current - pathTransformation.current[3].translateY}
+                                    width = {SQUARE_SIZE.current}
+                                    height = {SQUARE_SIZE.current}
+                                    color='white'
+                                    transform={pathTransformation}
+                                />
+                            })
+                        })}
+                    </Group> */}
+                    <Rect
+                        x={0}
+                        y={0}
+                        width={SCREEN_WIDTH}
+                        height={SCREEN_HEIGHT/2}
+                        color='white'
+                    />
+                    <Group>
+                        <Path
+                            path={PATH}
+                            color="black"
+                            style="stroke"
+                            strokeWidth={10}
+                            origin={{x: SCREEN_WIDTH/2, y: SCREEN_HEIGHT/4}}
+                            transform={pathTransformation}
+                        />
+                        <Circle 
+                            cx={SCREEN_WIDTH/2}
+                            cy={SCREEN_HEIGHT/4}
+                            r={10}
+                            color={'green'}
+                            origin={{x:SCREEN_WIDTH/2, y:SCREEN_HEIGHT/4}}
+                            transform={pathTransformation}
+                        />
+                    </Group>
+                </Canvas>
+            </View>
+            <View style={styles.buttonContainer}>
+                <TouchableOpacity onPress={nav3EKF.utilAddStep} style={styles.button}>
+                    <Text>+ Step</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={nav3EKF.utilRemoveStep} style={styles.button}>
+                    <Text>- Step</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={nav3EKF.utilTurnLeft} style={styles.button}>
+                    <Text>+ 45°</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={nav3EKF.utilTurnRight} style={styles.button}>
+                    <Text>- 45°</Text>
+                </TouchableOpacity>
+            </View>
 
-            <Canvas ref = {handleCanvas}/>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
+    container: {
+        marginVertical: 40,
+        flex: 1,
+        alignItems: 'center',
+    },
     buttonContainer: {
         alignItems: 'center',
         justifyContent: 'center',

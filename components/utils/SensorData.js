@@ -5,7 +5,6 @@ class SensorData {
         this.x = [];
         this.y = [];
         this.z = [];
-        this.t = [0];
     }
 
     setData(sensorDataObj) {
@@ -37,10 +36,6 @@ class SensorData {
 
     }
 
-    pushTimestamp(t){
-        this.t.push(t);
-    }
-
     getNorm() {
         return this.x.map((v, i) => Math.sqrt(
             Math.pow(v,2) + 
@@ -53,7 +48,7 @@ class SensorData {
         this.x = [];
         this.y = [];
         this.z = [];
-        this.t = [];
+        this.t = [0];
     }
 
 

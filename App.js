@@ -26,20 +26,19 @@ import DeadReckoningApp from './components/PDR/DeadReckoning';
 import PDRApp from './components/PDR/PDR';
 
 const Tab = createBottomTabNavigator();
-export default function App() {
+function App() {
   return(
-    <NavigationContainer>
-      <Tab.Navigator>
-        {/* <DeadReckoningApp /> */}
-        <Tab.Screen name="PDR" component={PDRApp}/>
-        <Tab.Screen name = "DEADRECKONING" component={DeadReckoningApp}/>
-        {/* <PDRApp /> */}
-      </Tab.Navigator>
-    </NavigationContainer>
+    // <NavigationContainer>
+    //   <Tab.Navigator>
+    //     <Tab.Screen name="Navigation" component={PDRApp}/>
+    //   </Tab.Navigator>
+    // </NavigationContainer>
 
+    <PDRApp/>
   );
 }
 
+export default App;
 
 const styles = StyleSheet.create({
   logo: {
