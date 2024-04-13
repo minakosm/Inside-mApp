@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Dimensions, AppState, TouchableOpacity, Permiss
 
 // Import Canvas
 // import Canvas from "react-native-canvas";
-import { Canvas, Group, Circle, Rect, Skia, Path, useValue, useComputedValue } from "@shopify/react-native-skia";
+import { Canvas, Group, Circle, Rect, Skia, Path, useValue, useComputedValue, PathVerb } from "@shopify/react-native-skia";
 
 // Import Sensor Related Libraries
 import { Gyroscope, Magnetometer, DeviceMotion } from "expo-sensors";
@@ -19,7 +19,6 @@ const { StorageAccessFramework } = FileSystem;
 
 // Custom Modules 
 import { nav3 } from "./nav3";
-import Button from "../utils/Button";
 
 const _freqUpdate = 20; // 50 ms sample period from motion sensors
 
@@ -34,14 +33,15 @@ TIMESTAMP = Date.now();
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const PATH = Skia.Path.Make();
-PATH.moveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
-
+PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 export default PDRApp = () => {
 
     const [start, setStart] = useState(false);
     const [clear, setClear] = useState(true);
-
     const [deviceSub, setDeviceSub] = useState();
+    const [pathTrHistory, setPathTrHistory] = useState(new Array());
+
+    const [heading, setHeading] = useState(0);
 
     const dataBuffer = useRef([null, null, null, null]);
 
@@ -98,8 +98,6 @@ export default PDRApp = () => {
     const _clear = () => {
         _unsubscribe();
 
-        nav3EKF.reset();
-
         accelerometerData.clear();
         accelerationWithoutGravity.clear();
         gyroscopeData.clear();
@@ -120,9 +118,12 @@ export default PDRApp = () => {
         SQUARE_SIZE.current = SQUARE_CONTAINER_SIZE.current - 0.5;
 
         PATH.reset();
-        PATH.moveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
+        PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 
+        setHeading(0);
+        setPathTrHistory(new Array());
         setClear(true);
+        nav3EKF.reset();
     }
 
     const update = () => {
@@ -155,7 +156,7 @@ export default PDRApp = () => {
 
         if(updatePath) {
             let lastPosObj = {x: nav3EKF.POSITION_HISTORY.data.x.slice(-1), y: nav3EKF.POSITION_HISTORY.data.y.slice(-1)};
-            handlePath(lastPosObj);
+            handlePath(lastPosObj, false);
         }
 
     }
@@ -230,7 +231,7 @@ export default PDRApp = () => {
 
                 if(updatePath) {
                     let lastPosObj = {x: nav3EKF.POSITION_HISTORY.data.x.slice(-1), y: nav3EKF.POSITION_HISTORY.data.y.slice(-1)};
-                    handlePath(lastPosObj);
+                    handlePath(lastPosObj, false);
                 }
             }
             alert("Playback Finished");
@@ -269,62 +270,108 @@ export default PDRApp = () => {
     }, [SQUARE_CONTAINER_SIZE.current]);
 
 
-    const handlePath = (lastPosObj) => {
-        // Scale Pixels/Meters
-        
-        let Wscale = SCREEN_WIDTH / sc;
-        let Hscale = SCREEN_HEIGHT / (2 * sc);
+    const handlePath = (lastPosObj, remove) => {
+        // Scale Pixels/Meters 
+        if(remove) { 
+            if(PATH.countPoints() == 1) {return;}
+            let cmds = PATH.toCmds();
+            cmds.pop();
+            cmds[0] = [0, SCREEN_WIDTH/2, SCREEN_HEIGHT/4];
+            let tempPath = Skia.Path.MakeFromCmds(cmds);
+            PATH.reset();
+            PATH.addPath(tempPath);
+            cmds = PATH.toCmds();
+            for(c in cmds) {
+                console.log(`IN REMOVE \t${c} \t ${cmds[c]}\n`);
+            }
 
-        let px = lastPosObj.x * Wscale;
-        let py = lastPosObj.y * Hscale;
+            console.log(`PATH POINTS = \t ${PATH.countPoints()}`);
 
-        PATH.lineTo(SCREEN_WIDTH/2 + px, SCREEN_HEIGHT/4 - py);
+            
+            setPathTrHistory(() => {
+                if(pathTrHistory.length==1) {return pathTrHistory}
+                pathTrHistory.pop();
+                return [...pathTrHistory]
+            })
+            pathTransformation.current = pathTrHistory.at(-1);
+            return;
+        } else {
 
-        console.log(`=======================================`);
+            let Wscale = SCREEN_WIDTH / sc;
+            let Hscale = SCREEN_HEIGHT / (2 * sc);
 
-        let {x: xBound, y: yBound, width: wBound, height: hBound} = PATH.getBounds();
+            let px = lastPosObj.x * Wscale;
+            let py = lastPosObj.y * Hscale;
+            PATH.lineTo(SCREEN_WIDTH/2 + px, SCREEN_HEIGHT/4 - py);
 
-        console.log(`X BOUND \t = \t ${xBound}`);
-        console.log(`Y BOUND \t = \t ${yBound}`);
-        console.log(`W BOUND \t = \t ${wBound}`);
-        console.log(`H BOUND \t = \t ${hBound}`);
+            console.log(`=======================================`);
 
+            let {x: xBound, y: yBound, width: wBound, height: hBound} = PATH.getBounds();
 
-        let scX = pathTransformation.current[0].scaleX;
-        let scY = pathTransformation.current[1].scaleY;
-        let trX = pathTransformation.current[2].translateX;
-        let trY = pathTransformation.current[3].translateY; 
+            let commands = PATH.toCmds();
 
-        // SCALING
-        if(wBound > SCREEN_WIDTH  - MARGIN) {scX = SCREEN_WIDTH/(wBound + MARGIN);}
-        if(hBound > SCREEN_HEIGHT/2 - MARGIN) {scY = SCREEN_HEIGHT/(2*hBound + MARGIN);}
+            for(c in commands) {
+                console.log(`IN ADD \t${c} \t ${commands[c]}\n`);
+            }
 
-        // TRANSLATING
-        // Center the path to the boundaries center
-        if(xBound + wBound >= SCREEN_WIDTH/scX - MARGIN/scX){
-            trX = -wBound/2;
-        } else if(xBound - wBound < trX) {
-            trX = wBound/2;
+            let scX = pathTransformation.current[0].scaleX;
+            let scY = pathTransformation.current[1].scaleY;
+            let trX = pathTransformation.current[2].translateX;
+            let trY = pathTransformation.current[3].translateY; 
+
+            // SCALING
+            if(wBound > SCREEN_WIDTH  - MARGIN) {scX = SCREEN_WIDTH/(wBound + MARGIN);}
+            if(hBound > SCREEN_HEIGHT/2 - MARGIN) {scY = SCREEN_HEIGHT/(2*hBound + MARGIN);}
+
+            // TRANSLATING
+            // Center the path to the boundaries center
+            if(xBound + wBound >= SCREEN_WIDTH/scX - MARGIN/scX){
+                trX = -wBound/2;
+            } else if(xBound - wBound < trX) {
+                trX = wBound/2;
+            }
+
+            if(yBound + hBound >= SCREEN_HEIGHT/(2*scY) - MARGIN/scY){
+                trY = -hBound/2;
+            } else if(yBound - hBound < trY) {
+                trY = hBound/2;
+            }
+
+            console.log(`+++++++++++++++++++++++++++++++++++++++`);
+            console.log(`trX \t= \t ${trX}`);
+            console.log(`trY \t= \t ${trY}`);
+            console.log(`scX \t= \t ${scX}`);
+            console.log(`scY \t= \t ${scY}`);
+
+            pathTransformation.current = [
+                {scaleX: scX},
+                {scaleY: scY},
+                {translateX: trX},
+                {translateY: trY}
+            ];
+
+            setPathTrHistory([...pathTrHistory, pathTransformation.current]);
         }
+    }
 
-        if(yBound + hBound >= SCREEN_HEIGHT/(2*scY) - MARGIN/scY){
-            trY = -hBound/2;
-        } else if(yBound - hBound < trY) {
-            trY = hBound/2;
-        }
+    const addStep = () => {
+        nav3EKF.utilAddStep();
+        handlePath({x: nav3EKF.POSITION_HISTORY.data.x.at(-1), y: nav3EKF.POSITION_HISTORY.data.y.at(-1)}, false);
+    }
 
-        console.log(`+++++++++++++++++++++++++++++++++++++++`);
-        console.log(`trX \t= \t ${trX}`);
-        console.log(`trY \t= \t ${trY}`);
-        console.log(`scX \t= \t ${scX}`);
-        console.log(`scY \t= \t ${scY}`);
+    const removeStep = () => {
+        nav3EKF.utilRemoveStep();
+        handlePath(null, true);
+    }
 
-        pathTransformation.current = ([
-            {scaleX: scX},
-            {scaleY: scY},
-            {translateX: trX},
-            {translateY: trY}
-        ])
+    const turnRight = () => {
+        nav3EKF.utilTurnRight();
+        setHeading(math.round(nav3EKF.quaternion2rpy(nav3EKF.lastStepAtt)[2] * (180/ Math.PI)))
+    }
+
+    const turnLeft = () => {
+        nav3EKF.utilTurnLeft();
+        setHeading(math.round(nav3EKF.quaternion2rpy(nav3EKF.lastStepAtt)[2] * (180/ Math.PI)))
     }
 
     useEffect(() => {
@@ -402,20 +449,24 @@ export default PDRApp = () => {
                 </Canvas>
             </View>
             <View style={styles.buttonContainer}>
-                <TouchableOpacity onPress={nav3EKF.utilAddStep} style={styles.button}>
+                <TouchableOpacity onPress={addStep} style={styles.button}>
                     <Text>+ Step</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={nav3EKF.utilRemoveStep} style={styles.button}>
+                <TouchableOpacity onPress={removeStep} style={styles.button}>
                     <Text>- Step</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={nav3EKF.utilTurnLeft} style={styles.button}>
+                <TouchableOpacity onPress={turnLeft} style={styles.button}>
                     <Text>+ 45°</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={nav3EKF.utilTurnRight} style={styles.button}>
+                <TouchableOpacity onPress={turnRight} style={styles.button}>
                     <Text>- 45°</Text>
                 </TouchableOpacity>
             </View>
 
+            <View>
+                <Text>Current Heading {heading}</Text>
+                <Text>Total Steps {PATH.countPoints() -1 }</Text>
+            </View>
         </View>
     );
 }

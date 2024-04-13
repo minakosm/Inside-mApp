@@ -73,7 +73,9 @@ class DataHistory {
         let zExists = this.checkIfKeyExists(dataObject, "z");
 
         if (xExists && yExists && zExists) {
-            this.data = dataObject;
+            this.data = {x: [dataObject.x],
+                         y: [dataObject.y],
+                         z: [dataObject.z]};
         }
 
     }
@@ -343,35 +345,42 @@ export class nav3 {
     // Utility Functions 
     utilAddStep() {
         STEP_COUNTER ++;
+        console.log(`STEP COUNTER  =\t ${STEP_COUNTER}`)
         if (STEP_COUNTER > 1) {
             STEP_ARRAY[STEP_COUNTER - 1] = math.mean(...STEP_ARRAY);
         } else {
             STEP_ARRAY[STEP_COUNTER - 1] = 0.7;
         }
 
-        console.log(`=========================== IN UTIL ===========================`);
-        console.log(`LAST STEP POS\t = \t ${this.lastStepPos}`)
-        console.log(`LAST STEP ROT\t = \t ${this.lastStepRot}`)
         this.position = math.add(this.lastStepPos, math.multiply(this.lastStepRot, math.matrix([[0], [STEP_ARRAY[STEP_COUNTER - 1]], [0]])));
-        this.utilEnabled = true;
+        
+        this.lastStepPos = this.position;
+            this.POSITION_HISTORY.push({
+                x: this.position.get([0, 0]),
+                y: this.position.get([1, 0]),
+                z: this.position.get([2, 0])
+            });
     }
     
     utilRemoveStep() {
         STEP_COUNTER --;
         if(STEP_COUNTER <= 0) {
-            STEP_ARRAY = [];
+            STEP_ARRAY.splice(0, STEP_ARRAY.length);
+            STEP_COUNTER = 0;
+            this.POSITION_HISTORY.set({x: 0, y:0, z:0});
+            this.position.set([0,0], 0);
+            this.position.set([1,0], 0);
+            this.position.set([2,0], 0);
+            this.lastStepPos = this.position;
             return;
         } else {
+            this.POSITION_HISTORY.pop();
+            this.position.set([0,0], this.POSITION_HISTORY.getLast().x);
+            this.position.set([1,0], this.POSITION_HISTORY.getLast().y);
+            this.position.set([2,0], this.POSITION_HISTORY.getLast().z);
+            this.lastStepPos = this.position;
             STEP_ARRAY.pop();
         }
-    
-        this.POSITION_HISTORY.pop();
-        this.position.set([0,0], this.POSITION_HISTORY.getLast().x);
-        this.position.set([1,0], this.POSITION_HISTORY.getLast().y);
-        this.position.set([2,0], this.POSITION_HISTORY.getLast().z);
-        this.POSITION_HISTORY.pop();
-    
-        this.utilEnabled = true;
     }
     
     utilTurnLeft() {
@@ -727,7 +736,7 @@ export class nav3 {
 
         // Satisfied modules 
         // Flags = [zemu, sdup];
-        if (judgeFlagsObj.sdup || this.utilEnabled) {
+        if (judgeFlagsObj.sdup) {
             this.lastStepPos = this.position;
             this.POSITION_HISTORY.push({
                 x: this.position.get([0, 0]),
@@ -748,8 +757,6 @@ export class nav3 {
         let judgeFlagsObj = this.judge(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj);
         // After Judgement
         this.update(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj, judgeFlagsObj);
-        console.log(`LAST STEP POS\t = \t ${this.lastStepPos}`)
-        console.log(`LAST STEP ROT\t = \t ${this.lastStepRot}`)
 
         return judgeFlagsObj.sdup;
     }
