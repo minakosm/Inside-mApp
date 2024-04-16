@@ -250,7 +250,7 @@ export default PDRApp = () => {
         {translateY: 0}
     ]);
     let sc = 5;
-    const MARGIN = 25;
+    const MARGIN = 50;
 
     //GRID 
     const SQUARES_AMOUNT_HORIZONTAL = useComputedValue(() => {
@@ -307,12 +307,14 @@ export default PDRApp = () => {
             console.log(`=======================================`);
 
             let {x: xBound, y: yBound, width: wBound, height: hBound} = PATH.getBounds();
-
+            let {x: xLast, y: yLast} = PATH.getLastPt();
             let commands = PATH.toCmds();
 
-            for(c in commands) {
-                console.log(`IN ADD \t${c} \t ${commands[c]}\n`);
-            }
+            console.log(`BOUNDS = {x: ${xBound} , y: ${yBound}}`);
+            console.log(`BOUNDS = {w: ${wBound} , h: ${hBound}}`);
+            console.log(`LAST = {x: ${xLast} , y: ${yLast}}`);
+
+            console.log(`=======================================`);
 
             let scX = pathTransformation.current[0].scaleX;
             let scY = pathTransformation.current[1].scaleY;
@@ -320,28 +322,27 @@ export default PDRApp = () => {
             let trY = pathTransformation.current[3].translateY; 
 
             // SCALING
-            if(wBound > SCREEN_WIDTH  - MARGIN) {scX = SCREEN_WIDTH/(wBound + MARGIN);}
+            if(wBound > SCREEN_WIDTH - MARGIN) {scX = SCREEN_WIDTH/(wBound + MARGIN);}
             if(hBound > SCREEN_HEIGHT/2 - MARGIN) {scY = SCREEN_HEIGHT/(2*hBound + MARGIN);}
 
             // TRANSLATING
-            // Center the path to the boundaries center
-            if(xBound + wBound >= SCREEN_WIDTH/scX - MARGIN/scX){
-                trX = -wBound/2;
-            } else if(xBound - wBound < trX) {
-                trX = wBound/2;
-            }
 
-            if(yBound + hBound >= SCREEN_HEIGHT/(2*scY) - MARGIN/scY){
-                trY = -hBound/2;
-            } else if(yBound - hBound < trY) {
-                trY = hBound/2;
-            }
+            // PATH BOUNDARIES 
+            let TOP = yBound;
+            let LEFT = xBound;
+            let BOT = yBound + hBound;
+            let RIGHT = xBound + wBound;
 
-            console.log(`+++++++++++++++++++++++++++++++++++++++`);
-            console.log(`trX \t= \t ${trX}`);
-            console.log(`trY \t= \t ${trY}`);
-            console.log(`scX \t= \t ${scX}`);
-            console.log(`scY \t= \t ${scY}`);
+            // WORLD BOUNDARIES 
+            let W_TOP = -trY * scY;
+            let W_LEFT = -trX * scX;
+            let W_BOT = (SCREEN_HEIGHT/4 - trY) * scY;
+            let W_RIGHT = (SCREEN_WIDTH/2 - trX) * scX;
+
+            // Translate the Path Boundaries Center to Canvas Center
+
+            trX = SCREEN_WIDTH/2 - xBound - wBound/2;
+            trY = SCREEN_HEIGHT/4 - yBound - hBound/2;
 
             pathTransformation.current = [
                 {scaleX: scX},
@@ -431,9 +432,9 @@ export default PDRApp = () => {
                     <Group>
                         <Path
                             path={PATH}
-                            color="black"
+                            color="darkblue"
                             style="stroke"
-                            strokeWidth={10}
+                            strokeWidth={10 /(math.mean(pathTransformation.current[0].scaleX, pathTransformation.current[1].scaleY))}
                             origin={{x: SCREEN_WIDTH/2, y: SCREEN_HEIGHT/4}}
                             transform={pathTransformation}
                         />
@@ -464,7 +465,7 @@ export default PDRApp = () => {
             </View>
 
             <View>
-                <Text>Current Heading {heading}</Text>
+                <Text>Current Heading {heading}°</Text>
                 <Text>Total Steps {PATH.countPoints() -1 }</Text>
             </View>
         </View>
