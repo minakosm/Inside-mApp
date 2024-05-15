@@ -165,7 +165,6 @@ export class Navigation {
         // Data History Windows 
         this.accWindow = new DataHistory();
         this.gyroWindow = new DataHistory();
-        this.magWindow = new DataHistory();
 
         // USER (X,Y) COORDINATES HISTORY
         this.POSITION_HISTORY = new DataHistory();
@@ -322,7 +321,7 @@ export class Navigation {
     }
 
     // State Prediction Function   
-    predict(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj) {
+    predict(accelerometerDataObj) {
         this.RotationMatrix = Navigation.quaternion2matrix(this.attitude);
         let acc = [accelerometerDataObj.x, accelerometerDataObj.y, accelerometerDataObj.z];
 
@@ -519,12 +518,11 @@ export class Navigation {
     }
 
     // Pass the Data to the correspondig Windows
-    prepDataHistory(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj) {
+    prepDataHistory(accelerometerDataObj, gyroscopeDataObj) {
 
         // Data Window length check
         let lenAcc = this.accWindow.length();
         let lenGyro = this.gyroWindow.length();
-        let lenMag = this.magWindow.length();
 
         let lenCheck = (lenAcc === lenGyro) && (lenGyro === lenMag);
 
@@ -533,7 +531,6 @@ export class Navigation {
             if (lenAcc < WINDOW) {
                 this.accWindow.push(accelerometerDataObj);
                 this.gyroWindow.push(gyroscopeDataObj);
-                this.magWindow.push(magnetometerDataObj);
 
                 SDUP_Z_LP.push(0);
                 URU_G_LP.push(0);
@@ -541,7 +538,6 @@ export class Navigation {
             } else {
                 this.accWindow.pushAndShift(accelerometerDataObj);
                 this.gyroWindow.pushAndShift(gyroscopeDataObj);
-                this.magWindow.pushAndShift(magnetometerDataObj);
 
                 // PASS Z ACCELERATION THROUGH A LOW-PASS FILTER
                 let zLowPass = (math.sum(this.accWindow.data.z.slice(-SDUP_N))) / SDUP_N;
@@ -559,9 +555,9 @@ export class Navigation {
         }
     }
 
-    judge(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj) {
+    judge(accelerometerDataObj, gyroscopeDataObj) {
         // SAVE DATA HISTORY WINDOWS
-        this.prepDataHistory(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj);
+        this.prepDataHistory(accelerometerDataObj, gyroscopeDataObj);
 
         // Flag object to pass on update 
         let judgeFlagObj = {
@@ -587,7 +583,7 @@ export class Navigation {
     }
 
     // State Update Function
-    update(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj, judgeFlagsObj) {
+    update(accelerometerDataObj, gyroscopeDataObj, judgeFlagsObj) {
 
         let accData = [accelerometerDataObj.x, accelerometerDataObj.y, accelerometerDataObj.z];
 
@@ -635,14 +631,14 @@ export class Navigation {
     }
 
     // The Extended Kalman Filter "main" function
-    runEKF(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj) {
+    runEKF(accelerometerDataObj, gyroscopeDataObj) {
 
         // Predict the State Error values
-        this.predict(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj);
+        this.predict(accelerometerDataObj);
         // For each sensor input, judge the state of User and return the modules that are satisfied
-        let judgeFlagsObj = this.judge(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj);
+        let judgeFlagsObj = this.judge(accelerometerDataObj, gyroscopeDataObj);
         // After Judgement
-        this.update(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj, judgeFlagsObj);
+        this.update(accelerometerDataObj, gyroscopeDataObj, judgeFlagsObj);
 
         return {
             newStep: judgeFlagsObj.sdup,
