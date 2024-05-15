@@ -2,6 +2,7 @@ import * as math from "mathjs";
 import { Navigation } from "./Navigation";
 
 
+
 class Particle {
     constructor() {
         this.prevPoint = {
@@ -33,14 +34,21 @@ class OccupancyMap {
 
     isPFInitialized = () => {return this.initializedPF;}
 
-    initMap = (mapPath) => {
-        let mapInfo = JSON.parse(mapPath);
+    initMap = (mapInfo) => {
+        // let mapInfo = JSON.parse(mapPath);
         this.mapData = mapInfo.binaryMap;
         this.height = mapInfo.height;
         this.width = mapInfo.width;
         this.resolution  = mapInfo.resolution;
 
         this.particles = new Array(this.nrOfParticles);
+    }
+
+    isOutOfBounds= (currentCell) => {
+        let outOfBoundsX = currentCell.x < 0 || currentCell.x > this.width;
+        let outOfBoundsY = currentCell.y < 0 || currentCell.y > this.height;
+
+        return (outOfBoundsX || outOfBoundsY);
     }
 
     isInsideWall = (particle) => {
@@ -51,7 +59,6 @@ class OccupancyMap {
     }
 
     wallPassCheck = (particle) => {
-        if(this.isInsideWall(particle)) {return {wallHit: true, nrOfPaths: 0};}
         
         let prevCell = {
             x: math.floor(particle.prevPoint.x), 
@@ -68,8 +75,9 @@ class OccupancyMap {
             y: currCell.y - prevCell.y
         };
 
+        if(this.isOutOfBounds(currCell) || this.isInsideWall(particle)) {return {wallHit: true, nrOfPaths: 0};}
         if(math.norm([distance.x, distance.y])  <= 1) {
-            return false;
+            return {wallHit: false, nrOfPaths: 1};
         }
 
         let A = this.mapData.subset(math.index(
