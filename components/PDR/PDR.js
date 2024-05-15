@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useDebugValue } from "react";
 import { StyleSheet, Text, View, Dimensions, AppState, TouchableOpacity, PermissionsAndroid, Alert } from "react-native";
 
 // Import Canvas
 // import Canvas from "react-native-canvas";
-import { Canvas, Group, Circle, Rect, Skia, Path, useValue, useComputedValue, PathVerb } from "@shopify/react-native-skia";
-
+import { Canvas, Group, Circle, Skia, Path, Image, useImage } from "@shopify/react-native-skia";
 // Import Sensor Related Libraries
 import { Gyroscope, Magnetometer, DeviceMotion } from "expo-sensors";
 import { SensorData } from "../utils/SensorData";
@@ -18,16 +17,17 @@ import * as DocumentPicker from 'expo-document-picker';
 const { StorageAccessFramework } = FileSystem;
 
 // Custom Modules 
-import { nav3 } from "./nav3";
+import { Navigation } from "./Navigation";
+import { useSharedValue } from "react-native-reanimated";
 
-const _freqUpdate = 20; // 50 ms sample period from motion sensors
+const _freqUpdate = 20; // 20 ms (50 hz) sample period (frequency) from motion sensors
 
 const accelerometerData = new SensorData();
 const accelerationWithoutGravity = new SensorData();
 const gyroscopeData = new SensorData();
 const magnetometerData = new SensorData();
 
-const nav3EKF = new nav3();
+const nav = new Navigation();
 
 TIMESTAMP = Date.now();
 
@@ -39,11 +39,17 @@ export default PDRApp = () => {
     const [start, setStart] = useState(false);
     const [clear, setClear] = useState(true);
     const [deviceSub, setDeviceSub] = useState();
-    const [pathTrHistory, setPathTrHistory] = useState(new Array());
+    const [pathTrHistory, setPathTrHistory] = useState([
+        {scaleX: 1},
+        {scaleY: 1},
+        {translateX: 0},
+        {translateY: 0}
+    ]);
 
     const [heading, setHeading] = useState(0);
 
     const dataBuffer = useRef([null, null, null, null]);
+    const imageMap = useImage(require("../../assets/maps/MAP.png"));
 
     const _subscribe = () => {
         Promise.all([DeviceMotion.isAvailableAsync(), Gyroscope.isAvailableAsync(), Magnetometer.isAvailableAsync()])
@@ -69,7 +75,7 @@ export default PDRApp = () => {
 
                 Gyroscope.addListener((data) => {
 
-                    dataBuffer.current[2] = data;                                           // Angle Velocity in 3-axis in deg/s !!!!!!!!!!!!!!!MAYBE RAD/S!!!!!!!!!!!!!!!
+                    dataBuffer.current[2] = data;                                           // Angle Velocity in 3-axis in rad/s
                     if(dataBuffer.current.every((v) => math.isNull(v) == false)) {
                         update();
                     }
@@ -111,11 +117,6 @@ export default PDRApp = () => {
             {translateX: 0},
             {translateY: 0}
         ]);
-        
-        SQUARES_AMOUNT_HORIZONTAL.current = math.floor(sc/pathTransformation.current[0].scaleX);
-        SQUARES_AMOUNT_VERTICAL.current = math.floor(sc/pathTransformation.current[1].scaleY);
-        SQUARE_CONTAINER_SIZE.current = SCREEN_WIDTH / SQUARES_AMOUNT_HORIZONTAL.current;
-        SQUARE_SIZE.current = SQUARE_CONTAINER_SIZE.current - 0.5;
 
         PATH.reset();
         PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
@@ -123,7 +124,7 @@ export default PDRApp = () => {
         setHeading(0);
         setPathTrHistory(new Array());
         setClear(true);
-        nav3EKF.reset();
+        nav.reset();
     }
 
     const update = () => {
@@ -131,7 +132,7 @@ export default PDRApp = () => {
         let temp = Date.now();
         let dt = (temp - TIMESTAMP) / 1000 // in sec
         TIMESTAMP = temp;
-        nav3EKF.setDt(dt);
+        nav.setDt(dt);
 
         // Get Data from buffer
         accObj = dataBuffer.current[0];
@@ -142,8 +143,6 @@ export default PDRApp = () => {
         // Clear buffer
         dataBuffer.current = [null, null, null, null];
 
-        if (nav3EKF.SamplePeriod < 0 ) { console.log(`\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!`) ;} 
-
         // Store Data in SensorData objects
         accelerometerData.pushData(accObj);
         accelerationWithoutGravity.pushData(accWGObj);
@@ -151,11 +150,13 @@ export default PDRApp = () => {
         gyroscopeData.pushData(gyroObj);
         magnetometerData.pushData(magObj);
 
-        // Navigation Kalman Filter
-        let updatePath = nav3EKF.runEKF(accWGObj, gyroObj, magObj);
+        // Navigation
+        let navResults = nav.runEKF(accWGObj, gyroObj, magObj);
 
-        if(updatePath) {
-            let lastPosObj = {x: nav3EKF.POSITION_HISTORY.data.x.slice(-1), y: nav3EKF.POSITION_HISTORY.data.y.slice(-1)};
+        // Particle Filter
+
+        if(navResults.newStep) {
+            let lastPosObj = {x: nav.POSITION_HISTORY.data.x.slice(-1), y: nav.POSITION_HISTORY.data.y.slice(-1)};
             handlePath(lastPosObj, false);
         }
 
@@ -179,7 +180,7 @@ export default PDRApp = () => {
             {name: "acc_wg", size: accelerationWithoutGravity.x.length, data:{x: accelerationWithoutGravity.x, y: accelerationWithoutGravity.y, z: accelerationWithoutGravity.z}},
             // {name: "acc_rot", size: navEKF.xAccRotHistory.length, data:{x: navEKF.xAccRotHistory, y: navEKF.yAccRotHistory, z: navEKF.zAccRotHistory}},
             // {name: "vel", size: navEKF.xVelHistory.length, data:{x: navEKF.xVelHistory, y: navEKF.yVelHistory}},
-            {name: "pos", size: nav3EKF.POSITION_HISTORY.length(), data:{x: nav3EKF.POSITION_HISTORY.data.x, y: nav3EKF.POSITION_HISTORY.data.y}}, 
+            {name: "pos", size: nav.POSITION_HISTORY.length(), data:{x: nav.POSITION_HISTORY.data.x, y: nav.POSITION_HISTORY.data.y}}, 
           ]
 
         const filename = date.getDate() + "_" + date.getMonth() + "_" + date.getFullYear() + "_" + date.getHours() + ":" + date.getMinutes();
@@ -194,7 +195,7 @@ export default PDRApp = () => {
         } else {
           alert("You must allow permission to save.");
         }
-      }
+    }
 
     // Playback Function designed to run tests from existing Data
     const playback  = async () => {
@@ -212,7 +213,7 @@ export default PDRApp = () => {
             // Start Executing the Playback
             // Configure Sample Period 
             let samplePeriod = 1 / _freqUpdate;
-            nav3EKF.setDt(samplePeriod);                // TO BE FIXED
+            nav.setDt(samplePeriod);                // TO BE FIXED
             for(let i=0; i< accWGAssetObj.size; i++) {
 
                 // Parse Data to Objects
@@ -227,10 +228,10 @@ export default PDRApp = () => {
                 gyroscopeData.pushData(gyroObj);
                 magnetometerData.pushData(magObj);
 
-                let updatePath = nav3EKF.runEKF(accWGObj, gyroObj, magObj);
+                let updatePath = nav.runEKF(accWGObj, gyroObj, magObj);
 
                 if(updatePath) {
-                    let lastPosObj = {x: nav3EKF.POSITION_HISTORY.data.x.slice(-1), y: nav3EKF.POSITION_HISTORY.data.y.slice(-1)};
+                    let lastPosObj = {x: nav.POSITION_HISTORY.data.x.slice(-1), y: nav.POSITION_HISTORY.data.y.slice(-1)};
                     handlePath(lastPosObj, false);
                 }
             }
@@ -243,7 +244,7 @@ export default PDRApp = () => {
         
     }
 
-    const pathTransformation = useValue([
+    const pathTransformation = useRef([
         {scaleX: 1},
         {scaleY: 1},
         {translateX: 0},
@@ -252,47 +253,22 @@ export default PDRApp = () => {
     let sc = 5;
     const MARGIN = 50;
 
-    //GRID 
-    const SQUARES_AMOUNT_HORIZONTAL = useComputedValue(() => {
-        return math.floor(sc/pathTransformation.current[0].scaleX);
-    }, [pathTransformation]);
-
-    const SQUARES_AMOUNT_VERTICAL = useComputedValue(() => {
-        return math.floor(sc/pathTransformation.current[1].scaleY);
-    },[pathTransformation]);
-
-    const SQUARE_CONTAINER_SIZE = useComputedValue(() => {
-        return SCREEN_WIDTH / SQUARES_AMOUNT_HORIZONTAL.current;
-    },[SQUARES_AMOUNT_HORIZONTAL.current])
-
-    const SQUARE_SIZE = useComputedValue(() => {
-        return SQUARE_CONTAINER_SIZE.current - 0.5;
-    }, [SQUARE_CONTAINER_SIZE.current]);
-
-
     const handlePath = (lastPosObj, remove) => {
-        // Scale Pixels/Meters 
         if(remove) { 
             if(PATH.countPoints() == 1) {return;}
+
             let cmds = PATH.toCmds();
             cmds.pop();
             cmds[0] = [0, SCREEN_WIDTH/2, SCREEN_HEIGHT/4];
             let tempPath = Skia.Path.MakeFromCmds(cmds);
             PATH.reset();
             PATH.addPath(tempPath);
-            cmds = PATH.toCmds();
-            for(c in cmds) {
-                console.log(`IN REMOVE \t${c} \t ${cmds[c]}\n`);
-            }
-
-            console.log(`PATH POINTS = \t ${PATH.countPoints()}`);
-
             
             setPathTrHistory(() => {
-                if(pathTrHistory.length==1) {return pathTrHistory}
+                if(pathTrHistory.length == 1) {return pathTrHistory}
                 pathTrHistory.pop();
                 return [...pathTrHistory]
-            })
+            });
             pathTransformation.current = pathTrHistory.at(-1);
             return;
         } else {
@@ -304,17 +280,7 @@ export default PDRApp = () => {
             let py = lastPosObj.y * Hscale;
             PATH.lineTo(SCREEN_WIDTH/2 + px, SCREEN_HEIGHT/4 - py);
 
-            console.log(`=======================================`);
-
             let {x: xBound, y: yBound, width: wBound, height: hBound} = PATH.getBounds();
-            let {x: xLast, y: yLast} = PATH.getLastPt();
-            let commands = PATH.toCmds();
-
-            console.log(`BOUNDS = {x: ${xBound} , y: ${yBound}}`);
-            console.log(`BOUNDS = {w: ${wBound} , h: ${hBound}}`);
-            console.log(`LAST = {x: ${xLast} , y: ${yLast}}`);
-
-            console.log(`=======================================`);
 
             let scX = pathTransformation.current[0].scaleX;
             let scY = pathTransformation.current[1].scaleY;
@@ -326,21 +292,7 @@ export default PDRApp = () => {
             if(hBound > SCREEN_HEIGHT/2 - MARGIN) {scY = SCREEN_HEIGHT/(2*hBound + MARGIN);}
 
             // TRANSLATING
-
-            // PATH BOUNDARIES 
-            let TOP = yBound;
-            let LEFT = xBound;
-            let BOT = yBound + hBound;
-            let RIGHT = xBound + wBound;
-
-            // WORLD BOUNDARIES 
-            let W_TOP = -trY * scY;
-            let W_LEFT = -trX * scX;
-            let W_BOT = (SCREEN_HEIGHT/4 - trY) * scY;
-            let W_RIGHT = (SCREEN_WIDTH/2 - trX) * scX;
-
             // Translate the Path Boundaries Center to Canvas Center
-
             trX = SCREEN_WIDTH/2 - xBound - wBound/2;
             trY = SCREEN_HEIGHT/4 - yBound - hBound/2;
 
@@ -350,29 +302,28 @@ export default PDRApp = () => {
                 {translateX: trX},
                 {translateY: trY}
             ];
-
             setPathTrHistory([...pathTrHistory, pathTransformation.current]);
         }
     }
 
     const addStep = () => {
-        nav3EKF.utilAddStep();
-        handlePath({x: nav3EKF.POSITION_HISTORY.data.x.at(-1), y: nav3EKF.POSITION_HISTORY.data.y.at(-1)}, false);
+        nav.utilAddStep();
+        handlePath({x: nav.POSITION_HISTORY.data.x.at(-1), y: nav.POSITION_HISTORY.data.y.at(-1)}, false);
     }
 
     const removeStep = () => {
-        nav3EKF.utilRemoveStep();
+        nav.utilRemoveStep();
         handlePath(null, true);
     }
 
     const turnRight = () => {
-        nav3EKF.utilTurnRight();
-        setHeading(math.round(nav3EKF.quaternion2rpy(nav3EKF.lastStepAtt)[2] * (180/ Math.PI)))
+        nav.utilTurnRight();
+        setHeading(math.round(Navigation.quaternion2rpy(nav.lastStepAtt)[2] * (180/ Math.PI)))
     }
 
     const turnLeft = () => {
-        nav3EKF.utilTurnLeft();
-        setHeading(math.round(nav3EKF.quaternion2rpy(nav3EKF.lastStepAtt)[2] * (180/ Math.PI)))
+        nav.utilTurnLeft();
+        setHeading(math.round(Navigation.quaternion2rpy(nav.lastStepAtt)[2] * (180/ Math.PI)))
     }
 
     useEffect(() => {
@@ -406,37 +357,24 @@ export default PDRApp = () => {
                 </TouchableOpacity>
             </View>
             <View>
-                <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT/2, marginVertical: 10}}>
-                    {/* <Group>
-                        {new Array(SQUARES_AMOUNT_HORIZONTAL.current).fill(0).map((_, i) =>  {
-                            return new Array(SQUARES_AMOUNT_VERTICAL.current).fill(0).map((_, j)  => {
-                                return <Rect 
-                                    key={`(${i} , ${j})`}
-                                    x = {i * SQUARE_CONTAINER_SIZE.current - pathTransformation.current[2].translateX}
-                                    y = {j * SQUARE_CONTAINER_SIZE.current - pathTransformation.current[3].translateY}
-                                    width = {SQUARE_SIZE.current}
-                                    height = {SQUARE_SIZE.current}
-                                    color='white'
-                                    transform={pathTransformation}
-                                />
-                            })
-                        })}
-                    </Group> */}
-                    <Rect
+                <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT/2, marginVertical: 10}} >
+                    <Image 
+                        image={imageMap} 
                         x={0}
                         y={0}
-                        width={SCREEN_WIDTH}
+                        width={SCREEN_WIDTH} 
                         height={SCREEN_HEIGHT/2}
-                        color='white'
+                        fit="none"
                     />
                     <Group>
                         <Path
                             path={PATH}
                             color="darkblue"
                             style="stroke"
-                            strokeWidth={10 /(math.mean(pathTransformation.current[0].scaleX, pathTransformation.current[1].scaleY))}
+                            strokeWidth={1 /(math.mean(pathTransformation.current[0].scaleX, pathTransformation.current[1].scaleY))}
                             origin={{x: SCREEN_WIDTH/2, y: SCREEN_HEIGHT/4}}
-                            transform={pathTransformation}
+                            transform={pathTransformation.current}
+                            st
                         />
                         <Circle 
                             cx={SCREEN_WIDTH/2}
@@ -444,7 +382,7 @@ export default PDRApp = () => {
                             r={10}
                             color={'green'}
                             origin={{x:SCREEN_WIDTH/2, y:SCREEN_HEIGHT/4}}
-                            transform={pathTransformation}
+                            transform={pathTransformation.current}
                         />
                     </Group>
                 </Canvas>

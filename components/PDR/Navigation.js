@@ -1,7 +1,4 @@
-// FIND THE "TO FIX COMMENTS"
-
 import * as math from "mathjs";
-
 
 // DEBBUG
 let DEBUG_1 = 0;
@@ -9,15 +6,15 @@ let DEBUG_1 = 0;
 // Constants 
 const WINDOW = 25;
 //==============================================================================================================//
-// ZEMU CONSTANTS
+// ZEMU
 const ZEMU_VAR_ACC_THRESH = 0.25;
 //==============================================================================================================//
-// SDUP CONSTANTS AND VARIABLES
+// SDUP
+const SDUP_N = 6;                               // Low Pass Filter 'Order' 
+const SDUP_Z_LP = [];                           // Low-Pass Acceleration Data
 const SDUP_ACC_THRESHOLD = 0.6;                 // Acceleration Threshold to surpass in order to detect a step
 const SDUP_MAX_TIME = 0.85;                     // Maximum Step Time Threshold
-const SDUP_N = 6;                               // Low Pass Filter 'Order' 
-const STEP_ARRAY = [];                          // Step Length Array
-const SDUP_Z_LP = [];                           // Low-Pass Z acceleration
+const STEP_ARRAY = [];                          // Step Lengths Array
 
 let STEP_COUNTER = 0;
 let SDUP_STEP_DETECTED = false;
@@ -26,22 +23,16 @@ let SDUP_MAX = -100;
 let SDUP_MIN = 100;
 let SDUP_TIMEOUT = 0;
 //==============================================================================================================//
-// URU CONSTANTS AND VARIABLES
-const URU_N = 6;
-const URU_G_LP = [];
-const URU_ANGLE_THRESH = 11.5 * (math.pi / 180);                    // ANGLE CHANGE THRESHOLD
-
-let URU_RESET = true;
-let URU_INIT_STAND = true;
-let URU_GYRO_SUM = 0;
-
-/////////////////////////////////////////////////////////////////
-const URU_TURN_BUFFER = [];
-const URU_ANGLES = [-90, -45, 0, 45, 90];
-const URU_VAR_THRESH = 0.01;
+// URU
+const URU_N = 6;                                // Low Pass Filter 'Order'
+const URU_G_LP = [];                            // Low-Pass Gyroscope Data
+const URU_TURN_BUFFER = [];                     // Data Storage While inTurn
+const URU_ANGLES = [-90, -45, 0, 45, 90];       // Constant Angles
+const URU_VAR_THRESH = 0.01;                    // Variance Threshold to surpass in order to detect turn
 
 let URU_IN_TURN = false;
 let URU_TIMEOUT = 0;
+let URU_DELTA = 0;
 //==============================================================================================================//
 
 // Object of Arrays 
@@ -137,7 +128,7 @@ class DataHistory {
 
 }
 
-export class nav3 {
+export class Navigation {
     // Class Constructor 
     constructor() {
 
@@ -175,9 +166,6 @@ export class nav3 {
         this.accWindow = new DataHistory();
         this.gyroWindow = new DataHistory();
         this.magWindow = new DataHistory();
-
-        // Utility Flag 
-        this.utilEnabled = false;
 
         // USER (X,Y) COORDINATES HISTORY
         this.POSITION_HISTORY = new DataHistory();
@@ -219,7 +207,6 @@ export class nav3 {
         this.magWindow.clear();
 
         // Clear Global Vars
-
         // SDUP
         STEP_ARRAY.splice(0, STEP_ARRAY.length);
         SDUP_Z_LP.splice(0, SDUP_Z_LP.length);
@@ -228,36 +215,28 @@ export class nav3 {
         STEP_COUNTER = 0;
         SDUP_TIMEOUT = 0;
 
-
         // URU
         URU_G_LP.splice(0,URU_G_LP.length);
-
         URU_GYRO_SUM = 0;
-
         URU_RESET = true;
         URU_INIT_STAND = true;
-
         URU_TURN_BUFFER.splice(0, URU_TURN_BUFFER.length);
-
         URU_IN_TURN = false;
         URU_TIMEOUT = 0;
-
-        // Utility Flag 
-        this.utilEnabled = false;
 
         // DEBBUG
         this.POSITION_HISTORY.clear();
     }
 
     // 3x3 Skew Symmetric matrix
-    skewSymmetric(v) {
+   static skewSymmetric(v) {
         return math.matrix([[0, -v[2], v[1]],
         [v[2], 0, -v[0]],
         [-v[1], v[0], 0]]);
     }
 
     // Quaternion Multiplication Helper Function
-    quaternionMulti(q1, q2) {
+   static quaternionMulti(q1, q2) {
         // q1 = [w1, x1, y1, z1], q2 = [w2, x2, y2, z2]
 
         return [q1[0] * q2[0] - q1[1] * q2[1] - q1[2] * q2[2] - q1[3] * q2[3],
@@ -267,7 +246,7 @@ export class nav3 {
 
     }
 
-    quaternion2rpy(q) {
+   static quaternion2rpy(q) {
         // q = [qw, qx, qy, qz]
 
         // roll
@@ -289,7 +268,7 @@ export class nav3 {
     }
 
     // Utility function that transforms a given quaternion q to a Rotation Matrix R
-    quaternion2matrix(q) {
+   static quaternion2matrix(q) {
         // q = [w, x, y, z]
         return math.matrix([[1 - 2 * (q[2] * q[2] + q[3] * q[3]), 2 * (q[1] * q[2] - q[0] * q[3]), 2 * (q[1] * q[3] + q[0] * q[2])],
         [2 * (q[1] * q[2] + q[0] * q[3]), 1 - 2 * (q[1] * q[1] + q[3] * q[3]), 2 * (q[2] * q[3] - q[0] * q[1])],
@@ -297,7 +276,7 @@ export class nav3 {
     }
 
     // Utility Function that transforms given rpy angles to its corresponding quaternion
-    rpy2quaternion(r, p, y) {
+   static rpy2quaternion(r, p, y) {
 
         let qw = math.cos(r / 2) * math.cos(p / 2) * math.cos(y / 2) + math.sin(r / 2) * math.sin(p / 2) * math.sin(y / 2);
         let qx = math.sin(r / 2) * math.cos(p / 2) * math.cos(y / 2) - math.cos(r / 2) * math.sin(p / 2) * math.sin(y / 2);
@@ -322,7 +301,7 @@ export class nav3 {
     qNextFromGyro(gyroscopeDataObj, q_prev) {
         let omega = [gyroscopeDataObj.x, gyroscopeDataObj.y, gyroscopeDataObj.z];
 
-        let skewW = this.skewSymmetric(omega);
+        let skewW = Navigation.skewSymmetric(omega);
         omega = math.transpose([omega]);
 
         let wt = math.multiply(-1, math.transpose(omega));
@@ -342,67 +321,15 @@ export class nav3 {
         return qN_next;
     }
 
-    // Utility Functions 
-    utilAddStep() {
-        STEP_COUNTER ++;
-        console.log(`STEP COUNTER  =\t ${STEP_COUNTER}`)
-        if (STEP_COUNTER > 1) {
-            STEP_ARRAY[STEP_COUNTER - 1] = math.mean(...STEP_ARRAY);
-        } else {
-            STEP_ARRAY[STEP_COUNTER - 1] = 0.7;
-        }
-
-        this.position = math.add(this.lastStepPos, math.multiply(this.lastStepRot, math.matrix([[0], [STEP_ARRAY[STEP_COUNTER - 1]], [0]])));
-        
-        this.lastStepPos = this.position;
-            this.POSITION_HISTORY.push({
-                x: this.position.get([0, 0]),
-                y: this.position.get([1, 0]),
-                z: this.position.get([2, 0])
-            });
-    }
-    
-    utilRemoveStep() {
-        STEP_COUNTER --;
-        if(STEP_COUNTER <= 0) {
-            STEP_ARRAY.splice(0, STEP_ARRAY.length);
-            STEP_COUNTER = 0;
-            this.POSITION_HISTORY.set({x: 0, y:0, z:0});
-            this.position.set([0,0], 0);
-            this.position.set([1,0], 0);
-            this.position.set([2,0], 0);
-            this.lastStepPos = this.position;
-            return;
-        } else {
-            this.POSITION_HISTORY.pop();
-            this.position.set([0,0], this.POSITION_HISTORY.getLast().x);
-            this.position.set([1,0], this.POSITION_HISTORY.getLast().y);
-            this.position.set([2,0], this.POSITION_HISTORY.getLast().z);
-            this.lastStepPos = this.position;
-            STEP_ARRAY.pop();
-        }
-    }
-    
-    utilTurnLeft() {
-        this.lastStepAtt = this.rpy2quaternion(0 , 0, this.quaternion2rpy(this.lastStepAtt)[2] + 45 * (math.pi/180));
-        this.lastStepRot = this.quaternion2matrix(this.lastStepAtt);
-    }
-    
-    utilTurnRight() {
-        this.lastStepAtt = this.rpy2quaternion(0 , 0, this.quaternion2rpy(this.lastStepAtt)[2] - 45 * (math.pi/180));
-        this.lastStepRot = this.quaternion2matrix(this.lastStepAtt);
-    }
-
-
     // State Prediction Function   
     predict(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj) {
-        this.RotationMatrix = this.quaternion2matrix(this.attitude);
+        this.RotationMatrix = Navigation.quaternion2matrix(this.attitude);
         let acc = [accelerometerDataObj.x, accelerometerDataObj.y, accelerometerDataObj.z];
 
         // Predict dp, dv, da 
         // position Error, velocity Error, heading Error
         this.da = math.multiply(-this.dt, math.multiply(this.RotationMatrix, this.gyroBias));
-        this.dv = math.add(math.multiply(this.dt, this.skewSymmetric(acc), this.da), math.multiply(this.dt, this.RotationMatrix, this.accBias));
+        this.dv = math.add(math.multiply(this.dt, Navigation.skewSymmetric(acc), this.da), math.multiply(this.dt, this.RotationMatrix, this.accBias));
         //this.dp = math.multiply(this.dt, this.dv);
     }
 
@@ -468,8 +395,8 @@ export class nav3 {
         this.gyroBias.set([1,0], math.mean(this.gyroBias.get([1,0]), gyroBiasY));
         this.gyroBias.set([2,0], math.mean(this.gyroBias.get([2,0]), gyroBiasZ));
 
-        let lastStep_rpy = this.quaternion2rpy(this.lastStepAtt);
-        let curr_rpy = this.quaternion2rpy(this.attitude);
+        let lastStep_rpy = Navigation.quaternion2rpy(this.lastStepAtt);
+        let curr_rpy = Navigation.quaternion2rpy(this.attitude);
 
         // TO FIX! KEEPS EVERYTHING IN A STRAIGHT LINE 
         this.da = math.matrix(math.subtract(math.transpose([lastStep_rpy]), math.transpose([curr_rpy])));
@@ -481,44 +408,7 @@ export class nav3 {
         This judgement module is responsible for detecting significant rotations assuming that the user can only rotate during standing phases.
         . This module is enabled while ZEMU returns false 
     */
-    URU(walkingFlag) {
-        
-        let gyroW = JSON.parse(JSON.stringify(this.gyroWindow));
-        let magW = JSON.parse(JSON.stringify(this.magWindow));
-
-        if(walkingFlag) {
-            // URU_BIAS = math.mean(URU_BIAS, math.mean(URU_G_LP.slice(URU_G_LP.length - WINDOW)));
-            // URU_BIAS = math.mean(URU_BIAS, ...URU_G_LP.slice(URU_G_LP.length - WINDOW));
-            URU_INIT_STAND = false;
-            if (!URU_RESET) {
-                URU_RESET = true;
-                // console.log(`\n====================================================================================================`);
-                // console.log(`\n\nURU ROTATION = ${URU_GYRO_SUM * (180/math.pi)}`);
-                URU_GYRO_SUM = math.abs(URU_GYRO_SUM) < URU_ANGLE_THRESH ? 0 : URU_GYRO_SUM;
-                URU_GYRO_SUM = math.abs(URU_GYRO_SUM - math.sign(URU_GYRO_SUM) * math.pi/2) < URU_ANGLE_THRESH ? math.sign(URU_GYRO_SUM) * math.pi/2 : URU_GYRO_SUM;
-                URU_GYRO_SUM = math.abs(URU_GYRO_SUM) > math.pi/2 ? math.sign(URU_GYRO_SUM) * math.pi/2 : URU_GYRO_SUM;
-                
-                //console.log(`\n\nURU ROTATION update = ${(URU_GYRO_SUM + this.quaternion2rpy(this.lastStepAtt)[2]) * (180/math.pi)}`);
-
-                this.lastStepAtt = this.rpy2quaternion(0 , 0, this.quaternion2rpy(this.lastStepAtt)[2] + URU_GYRO_SUM);
-                this.lastStepRot = this.quaternion2matrix(this.lastStepAtt);
-               
-               
-                // console.log(`LAST STEP ATTITUDE YAW= ${this.quaternion2rpy(this.lastStepAtt)[2] * 180/math.pi}`);
-                // console.log(`\n\n====================================================================================================`);
-
-                URU_GYRO_SUM = 0;
-            }
-
-        }
-
-        if(!walkingFlag && !URU_INIT_STAND) {
-            URU_GYRO_SUM = (math.variance(gyroW.data.z) > 0.125) ? URU_GYRO_SUM + URU_G_LP[URU_G_LP.length-1] * this.dt : URU_GYRO_SUM;
-            URU_RESET = false;
-        }
-    }
-
-    URU_V2() {
+    URU() {
         let varSq = URU_G_LP.map((v) => v*v).slice(-WINDOW);
         let turnFlag = math.variance(varSq) > URU_VAR_THRESH;
 
@@ -532,9 +422,7 @@ export class nav3 {
         // If a valid turn ends then calculate the angle 
         if(!turnFlag && URU_IN_TURN && URU_TIMEOUT >= 1.5) {
             URU_IN_TURN = false;
-            
             let m = math.mean(URU_TURN_BUFFER);
-
             let p = URU_TURN_BUFFER.find((value) => {
                 return (math.abs(value) == math.max(math.abs(URU_TURN_BUFFER)));
             });
@@ -551,13 +439,12 @@ export class nav3 {
                     angle = URU_ANGLES[i];
                 }
             }
-
-            //console.log(`TURN   :   ${angle}`);
-            this.lastStepAtt = this.rpy2quaternion(0 , 0, this.quaternion2rpy(this.lastStepAtt)[2] + angle * (math.pi/180));
-            this.lastStepRot = this.quaternion2matrix(this.lastStepAtt);
-            //console.log(`NEW    :   ${this.quaternion2rpy(this.lastStepAtt)[2] * 180/math.pi}`);
+            URU_DELTA = angle;
+            this.lastStepAtt = Navigation.rpy2quaternion(0 , 0, Navigation.quaternion2rpy(this.lastStepAtt)[2] + angle * (math.pi/180));
+            this.lastStepRot = Navigation.quaternion2matrix(this.lastStepAtt);
             URU_TURN_BUFFER.splice(0, URU_TURN_BUFFER.length);
             URU_TIMEOUT = 0;
+            return true;
         }
 
         // If a turn is insignifically small, then ignore it and reset
@@ -566,7 +453,9 @@ export class nav3 {
             URU_IN_TURN = false;
             URU_TURN_BUFFER.splice(0, URU_TURN_BUFFER.length);
         }
-       
+        
+        URU_DELTA = 0;
+        return false;
     }
 
     /* STEP DETECTION AND UPDATE  
@@ -616,7 +505,7 @@ export class nav3 {
                     //this.dv = math.subtract(this.velocity, math.multiply(this.lastStepRot, this.lastStepVel));
             
                     let velArr = [this.velocity.get([0,0]), this.velocity.get([1,0]), this.velocity.get([2,0])];
-                    this.dv = math.subtract(math.multiply(this.lastStepRot, this.velocity), math.multiply(this.lastStepRot, this.skewSymmetric(velArr), this.da));
+                    this.dv = math.subtract(math.multiply(this.lastStepRot, this.velocity), math.multiply(this.lastStepRot, Navigation.skewSymmetric(velArr), this.da));
                     return true;
                 }
             }
@@ -630,7 +519,6 @@ export class nav3 {
     }
 
     // Pass the Data to the correspondig Windows
-
     prepDataHistory(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj) {
 
         // Data Window length check
@@ -679,12 +567,12 @@ export class nav3 {
         let judgeFlagObj = {
             zemu: false,
             sdup: false,
+            uru:  false,
         };
 
-        // ZERO VELOCITY UPDATE 
+        // ZERO MOVEMENT UPDATE 
         judgeFlagObj.zemu = this.ZEMU();
-       
-  
+
         // IF USER IS WALKING, CHECK FOR STEPS 
         if (!judgeFlagObj.zemu) {
             // WE ASSUME THAT A USER CAN ONLY WALK IN STRAIGHT LINES 
@@ -692,9 +580,8 @@ export class nav3 {
             // STEP DETECTION AND LENGTH/VELOCITY EXTRACTION 
             judgeFlagObj.sdup = this.SDUP();
         }
-        
         // USER ROTATION UPDATE
-        this.URU_V2();
+        judgeFlagObj.uru = this.URU();
 
         return judgeFlagObj;
     }
@@ -709,19 +596,19 @@ export class nav3 {
         // Update State Variables 
         // Attitude
         
-        //let varQ = this.rpy2quaternion(gyroscopeDataObj.x * this.dt, gyroscopeDataObj.y * this.dt, gyroscopeDataObj.z * this.dt);
+        //let varQ = Navigation.rpy2quaternion(gyroscopeDataObj.x * this.dt, gyroscopeDataObj.y * this.dt, gyroscopeDataObj.z * this.dt);
         
         // let varQ = this.quaternionFromGyro(gyroscopeDataObj);
-        // this.attitude = this.quaternionMulti(varQ, this.attitude);
+        // this.attitude = Navigation.quaternionMulti(varQ, this.attitude);
         this.attitude = this.qNextFromGyro(gyroscopeDataObj, this.attitude);
         
-        let errorQ = this.rpy2quaternion(this.da.get([0, 0]), this.da.get([1, 0]), this.da.get([2, 0]));
+        let errorQ = Navigation.rpy2quaternion(this.da.get([0, 0]), this.da.get([1, 0]), this.da.get([2, 0]));
 
-        //let errorQ = this.rpy2quaternion(0,0,this.da.get([2,0]));
-        this.attitude = this.quaternionMulti(this.attitude, errorQ);
+        //let errorQ = Navigation.rpy2quaternion(0,0,this.da.get([2,0]));
+        this.attitude = Navigation.quaternionMulti(this.attitude, errorQ);
 
         // Update Rotations
-        this.RotationMatrix = this.quaternion2matrix(this.attitude);
+        this.RotationMatrix = Navigation.quaternion2matrix(this.attitude);
 
         // Velocity
         this.velocity = math.add(this.velocity, math.multiply(this.RotationMatrix, math.transpose([accData]), this.dt));
@@ -743,7 +630,6 @@ export class nav3 {
                 y: this.position.get([1, 0]),
                 z: this.position.get([2, 0])
             });
-            this.utilEnabled = false;
         }
 
     }
@@ -758,6 +644,63 @@ export class nav3 {
         // After Judgement
         this.update(accelerometerDataObj, gyroscopeDataObj, magnetometerDataObj, judgeFlagsObj);
 
-        return judgeFlagsObj.sdup;
+        return {
+            newStep: judgeFlagsObj.sdup,
+            newTurn: judgeFlagsObj.uru,
+            stepLength: STEP_ARRAY.at(-1),
+            deltaTh : URU_DELTA,
+        }
+    }
+
+    // ======== USER INPUT FUNCTIONS ========
+    // ADD STEP
+    utilAddStep() {
+        STEP_COUNTER ++;
+        console.log(`STEP COUNTER  =\t ${STEP_COUNTER}`)
+        if (STEP_COUNTER > 1) {
+            STEP_ARRAY[STEP_COUNTER - 1] = math.mean(...STEP_ARRAY);
+        } else {
+            STEP_ARRAY[STEP_COUNTER - 1] = 0.7;
+        }
+
+        this.position = math.add(this.lastStepPos, math.multiply(this.lastStepRot, math.matrix([[0], [STEP_ARRAY[STEP_COUNTER - 1]], [0]])));
+        
+        this.lastStepPos = this.position;
+            this.POSITION_HISTORY.push({
+                x: this.position.get([0, 0]),
+                y: this.position.get([1, 0]),
+                z: this.position.get([2, 0])
+            });
+    }
+    // REMOVE STEP
+    utilRemoveStep() {
+        STEP_COUNTER --;
+        if(STEP_COUNTER <= 0) {
+            STEP_ARRAY.splice(0, STEP_ARRAY.length);
+            STEP_COUNTER = 0;
+            this.POSITION_HISTORY.set({x: 0, y:0, z:0});
+            this.position.set([0,0], 0);
+            this.position.set([1,0], 0);
+            this.position.set([2,0], 0);
+            this.lastStepPos = this.position;
+            return;
+        } else {
+            this.POSITION_HISTORY.pop();
+            this.position.set([0,0], this.POSITION_HISTORY.getLast().x);
+            this.position.set([1,0], this.POSITION_HISTORY.getLast().y);
+            this.position.set([2,0], this.POSITION_HISTORY.getLast().z);
+            this.lastStepPos = this.position;
+            STEP_ARRAY.pop();
+        }
+    }
+    // TURN LEFT
+    utilTurnLeft() {
+        this.lastStepAtt = Navigation.rpy2quaternion(0 , 0, Navigation.quaternion2rpy(this.lastStepAtt)[2] + 45 * (math.pi/180));
+        this.lastStepRot = Navigation.quaternion2matrix(this.lastStepAtt);
+    }
+    // TURN RIGHT
+    utilTurnRight() {
+        this.lastStepAtt = Navigation.rpy2quaternion(0 , 0, Navigation.quaternion2rpy(this.lastStepAtt)[2] - 45 * (math.pi/180));
+        this.lastStepRot = Navigation.quaternion2matrix(this.lastStepAtt);
     }
 }
