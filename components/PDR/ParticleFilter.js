@@ -1,7 +1,33 @@
 import * as math from "mathjs";
 import { Navigation } from "./Navigation";
 
-
+const mapInfo = {
+    binaryMap: math.matrix([
+        [1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1],
+        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
+        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
+        [1 ,0 ,0 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,0 ,0 ,0 ,0 ,1],
+        [1 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,1],
+        [1 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
+        [1 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
+        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
+        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
+        [1 ,1 ,1 ,1 ,1 ,0 ,0 ,0 ,0 ,0 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1],
+        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
+        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
+        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
+        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
+        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
+        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
+        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
+        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
+        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
+        [1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1]
+    ]),
+    height : 20,
+    width : 20,
+    resolution : 1
+}
 
 class Particle {
     constructor() {
@@ -16,17 +42,58 @@ class Particle {
         this.heading = 0;
         this.weight = 0;
     }
+
+    getPrevPoint = () =>  {
+        return this.prevPoint;
+    }
+
+    getCurrPoint = () =>{
+        return this.currPoint;
+    }
+
+    getHeading = () =>  {
+        return this.heading;
+    }
+
+    getWeight = () => {
+        return  this.weight
+    }
+
+    setPrevPoint = (x, y)  => {
+        this.prevPoint.x = x;
+        this.prevPoint.y = y;
+    } 
+
+    setCurrPoint = (x, y) => {
+        this.currPoint.x = x;
+        this.currPoint.y = y;
+    }
+
+    setHeading = (theta) => {
+        this.heading = theta;
+    }
+
+    setWeight = (w) => {
+        this.weight = w;
+    }
  }
  
 class OccupancyMap {
-    nrOfParticles = 200;
-    mapData = null;
-    width = 0;
-    height = 0;
-    resolution = null;
+    constructor(){}
+
+    nrOfParticles = 5;
+    mapData = mapInfo.binaryMap;
+    width = mapInfo.height;
+    height = mapInfo.width;
+    resolution = mapInfo.resolution;
     
-    initializedPF =  false;
+    initializedPF = false;
     particles = [];
+
+    userPos = {
+        x: null,
+        y: null,
+    }
 
     // GETTERS - SETTERS
     getNrOfParticles = () => {return this.nrOfParticles;}
@@ -34,15 +101,51 @@ class OccupancyMap {
 
     isPFInitialized = () => {return this.initializedPF;}
 
+    clear = () => {
+        this.mapData = null;
+        this.width = 0;
+        this.height = 0;
+        this.resolution = null;
+
+        this.initializedPF = false;
+        this.particles = [];
+    }
+
     initMap = (mapInfo) => {
         // let mapInfo = JSON.parse(mapPath);
-        this.mapData = mapInfo.binaryMap;
-        this.height = mapInfo.height;
-        this.width = mapInfo.width;
-        this.resolution  = mapInfo.resolution;
+        this.mapData = math.matrix(mapInfo.binaryMap);
+        this.height = Number(mapInfo.height);
+        this.width = Number(mapInfo.width);
+        this.resolution = mapInfo.resolution;
 
         this.particles = new Array(this.nrOfParticles);
+
+        this.initParticles();
     }
+
+    // PARTICLE FILTER INITIALIZATION
+    initParticles = () => {
+        console.log(`INIT ${this.getNrOfParticles()} PARTICLES`)
+        for( let i = 0 ; i<this.nrOfParticles; i++) {
+            let p = new Particle() ;
+            do {
+                p.setCurrPoint( math.random(0, this.width), math.random(0, this.height) );
+                p.setPrevPoint( p.getCurrPoint().x, p.getCurrPoint().y );
+                p.setHeading(  math.random(-120, 120)  );
+            } while (this.isInsideWall(p));
+            p.setWeight( 1/this.nrOfParticles );
+            this.particles[i] = p;
+        }
+
+        console.log(`=========================================================== INIT PARTICLES ===========================================================`)
+        this.particles.forEach((v, i) =>{
+            console.log(`${i} PARTICLE ->   \t ${JSON.stringify(v)}`)
+        })
+        console.log(`=========================================================== INIT PARTICLES ===========================================================`)
+        // this.userPos.x = this.particles.reduce((s, c) => {s + c.getCurrPoint().x * c.getWeight()}, 0);
+        // this.userPos.y = this.particles.reduce((s, c) => {s + c.getCurrPoint().y * c.get.weight()}, 0);
+        this.initializedPF = true;
+    }    
 
     isOutOfBounds= (currentCell) => {
         let outOfBoundsX = currentCell.x < 0 || currentCell.x > this.width;
@@ -52,40 +155,56 @@ class OccupancyMap {
     }
 
     isInsideWall = (particle) => {
-        let xCell = math.floor(particle.currPoint.x);
-        let yCell = math.floor(particle.currPoint.y);
+        let xCell = math.floor(particle.getCurrPoint().x);
+        let yCell = math.floor(particle.getCurrPoint().y);
 
-        return this.mapData.get([yCell, xCell]) === 1;
+        return mapInfo.binaryMap.get([yCell, xCell]) == 1;
     }
 
     wallPassCheck = (particle) => {
         
         let prevCell = {
-            x: math.floor(particle.prevPoint.x), 
-            y: math.floor(particle.prevPoint.y)
+            x: math.floor(particle.getPrevPoint().x), 
+            y: math.floor(particle.getPrevPoint().y)
         };
 
         let currCell = {
-            x: math.floor(particle.currPoint.x),
-            y: math.floor(particle.currPoint.y)
+            x: math.floor(particle.getCurrPoint().x),
+            y: math.floor(particle.getCurrPoint().y)
         };
 
         let distance = {
             x: currCell.x - prevCell.x,
             y: currCell.y - prevCell.y
         };
-
-        if(this.isOutOfBounds(currCell) || this.isInsideWall(particle)) {return {wallHit: true, nrOfPaths: 0};}
-        if(math.norm([distance.x, distance.y])  <= 1) {
-            return {wallHit: false, nrOfPaths: 1};
-        }
-
-        let A = this.mapData.subset(math.index(
-            math.range(math.min(currCell.y, prevCell.y),  math.max(currCell.y, prevCell.y), true), 
-            math.range(math.min(currCell.x, prevCell.x),  math.max(currCell.x, prevCell.x), true)
-        ));
         
+        if(this.isOutOfBounds(currCell) || this.isInsideWall(particle)) {
+            console.log(`WALL RETURN 0`)
+            return {wallHit: true, nrOfPaths: 0};
+        }
+        console.log(`WALL DBG 1`)
+        // if(math.norm([distance.x, distance.y])  <= 1) {
+        //     console.log(`WALL RETURN 1`);
+        //     return {wallHit: false, nrOfPaths: 1};
+        // }
+
+        console.log(`WALL DBG CRIT`)
+        let yMin = prevCell.y === null ? currCell.y : math.min(currCell.y, prevCell.y);
+        let yMax = prevCell.y === null ? currCell.y : math.max(currCell.y, prevCell.y);
+        
+        let xMin = prevCell.y === null ? currCell.x : math.min(currCell.x, prevCell.x);
+        let xMax = prevCell.y === null ? currCell.x : math.max(currCell.x, prevCell.x);
+
+        console.log(`Y ${yMin,  yMax}`);
+        console.log(`X ${xMin,  xMax}`);
+        let A = mapInfo.binaryMap.subset(math.index([
+            math.range(yMin,  yMax, true), 
+            math.range(xMin,  xMax, true)
+        ]));
+
+        console.log(`WALL DBG 2`)
         let [r, c] = A.size();
+        
         let iStart = distance.y > 0 ? 0 : r-1;
         let jStart = distance.x > 0 ? 0 : c-1;
 
@@ -96,6 +215,7 @@ class OccupancyMap {
         let dirY = math.sign(distance.y);
 
         A.set([iStart, jStart], 1);
+        console.log(`WALL DBG 3`)
         for(let j = jStart + dirX; j != jEnd + dirX; j+=dirX)  {
             if(A.get([iStart,j]) === 0 ) {
                 A.set([iStart,j], A.get([iStart, j-dirX]))
@@ -103,7 +223,7 @@ class OccupancyMap {
                 A.set([iStart,j], 0);
             }
         }
-            
+        console.log(`WALL DBG 4`)    
         for(i=iStart+dirY; i!=iEnd + dirY; i+=dirY) {
             if(A.get([i, jStart]) === 0) {
               A.set([i, jStart], A.get([i-dirY, jStart]))
@@ -111,7 +231,7 @@ class OccupancyMap {
               A.set([i,jStart], 0);
             }
           }
-
+        console.log(`WALL DBG 5`)
         for(let i=iStart+dirY; i!=iEnd+dirY; i+=dirY) {
             for(let j=jStart+dirX; j!=jEnd+dirY; i+=dirX) {
                 if(A.get([i,j]) === 0) {
@@ -121,13 +241,13 @@ class OccupancyMap {
                 }
             }
         }
-        
+        console.log(`WALL DBG 6`)
         return {wallHit: A.get([iEnd, jEnd]) === 0, nrOfPaths: A.get([iEnd, jEnd])};
     }
 
     distanceFromWalls = (particle) => {
-        let xCell = math.floor(particle.currPoint.x);
-        let yCell = math.floor(particle.currPoint.y);
+        let xCell = math.floor(particle.getCurrPoint().x);
+        let yCell = math.floor(particle.getCurrPoint().y);
 
         // LOOK UP 
         let wallUp = 1;
@@ -169,89 +289,107 @@ class OccupancyMap {
             }
         }
         
-        wallUp = wallUp - 1 + (particle.currPoint.y - yCell);
-        wallDown = wallDown - (particle.currPoint.y - yCell);
+        wallUp = wallUp - 1 + (particle.getCurrPoint().y - yCell);
+        wallDown = wallDown - (particle.getCurrPoint().y - yCell);
 
-        wallLeft = wallLeft - 1 + (particle.currPoint.x - xCell);
-        wallRight = wallRight - (particle.currPoint.x - xCell);
+        wallLeft = wallLeft - 1 + (particle.getCurrPoint().x - xCell);
+        wallRight = wallRight - (particle.getCurrPoint().x - xCell);
 
         return [wallUp, wallRight, wallDown, wallLeft];
     }
 
     runParticleFilter = (stepLength, yawChange) => {
-        if(!this.isPFInitialized()) {
-            this.initParticles();
-        }
-
+        console.log('BEFORE MOVE');
+        console.log(`STEP LENGTH: ${stepLength}`);
+        console.log(`YAW CHANGE: ${yawChange}`);
         this.moveParticles(stepLength, yawChange);
 
+        console.log('BEFORE UPDATE');
         this.updateWeights();
 
+        console.log(`AFTER UPDATE`)
         // Compute the Neff
         let N = this.nrOfParticles;
-        let sumSq = this.particles.map(v => v.weight).reduce((p,c) => p + c*c, 0);
+        let sumSq = this.particles.map(v => v.getWeight()).reduce((p,c) => p + c*c, 0);
 
         let Neff = 1/sumSq;
-        if(Neff < N/3) {
+
+        console.log(`Neff = ${Neff}`);
+        if(Neff < N/2) {
+            console.log(`BEFORE RESAMPLE`)
             let particleIndexes = this.systematicResample(this.particles);
             
+            console.log(`AFTER RESAMPLE`);
             this.particles = math.subset(this.particles, math.index(particleIndexes));
         }
     }
 
-    // PARTICLE FILTER INITIALIZATION
-    initParticles = () => {
-        for( let i = 0 ; i<this.nrOfParticles; i++) {
-            let p = new Particle() ;
-            do {
-                p.currPoint.x = math.random(0, this.width);
-                p.currPoint.y = math.random(0, this.height);
-                p.heading = math.random(-180, 180);
-            } while (!this.isInsideWall(p));
-            p.weight = 1/this.nrOfParticles;
-            this.particles[i] = p;
-        }
-        this.initializedPF = true;
-    }
-
     // PROPAGATE 
     moveParticles = (l, deltaTheta) => {
-        for(let i=0; i< this.particles.length; i++) {
+        for(let i=0; i< this.nrOfParticles; i++) {
+            let p = this.particles[i];
             let dl = gaussianRandom(0, 0.2);
             let dth = gaussianRandom(0, 1);
-            this.particles[i].heading = Navigation.quaternion2rpy(Navigation.rpy2quaternion(0, 0, this.particles[i].heading + deltaTheta + dth))[2];
-            this.particles[i].prevPoint = this.particles[i].currPoint;
+
+            console.log(`dl = ${dl}     \t dth = ${dth}`)
+            let newHeading = p.getHeading() + deltaTheta + dth;
+            p.setHeading(newHeading);
+            console.log(`${i} PARTICLE HEADING \t -> \t ${p.getHeading()}`);
+            p.setPrevPoint(p.getCurrPoint().x, p.getCurrPoint().y)
 
             // WORLD COORDINATES (X LEFT, Y UP) -> MAP COORDINATES (X RIGHT, Y DOWN) 
-            this.particles[i].currPoint.x += (l + dl) * math.cos(this.particles[i].heading + math.pi/2);
-            this.particles[i].currPoint.y += (l + dl) * math.sin(this.particles[i].heading + math.pi/2);
+            p.setCurrPoint(p.getCurrPoint().x + (l + dl) * (-math.sin(p.getHeading() * math.pi/180)), p.getCurrPoint().y + (l + dl) * (-math.cos(p.getHeading() * math.pi/180)));
         }
+
+        console.log(`=========================================================== MOVE PARTICLES ===========================================================`)
+            this.particles.forEach((v, i) =>{
+                console.log(`${i} PARTICLE ->   \t ${JSON.stringify(v)}`)
+            })
+        console.log(`=========================================================== MOVE PARTICLES ===========================================================`)
     }
 
     // UPDATE
     updateWeights = () => {
-        for(let i=0; i<this.particles.length; i++){
-            let {nrOfPaths, wallHit}  = this.wallPassCheck(this.particles[i]);
-            if(wallHit) {
-                this.particles[i].weight = 0;
-            } else {
-                // WEIGHT UPDATE FUNCTION 
-                let [up, right, down, left] = this.distanceFromWalls(this.particles[i]);
-                
-                let minDist =  math.min(up, right, down, left);
-                ///  //????????
+        console.log(`=========================================================== UPDATE PARTICLES ===========================================================`)
+
+        let c = 0;
+        for (let p of this.particles) {
+            let inWall = this.isInsideWall(p);
+            if(inWall) {
+                p.setWeight(0);
             }
+            console.log(`${c} PARTICLE \t ${JSON.stringify(p)}`);
+            c = c+1;
         }
+        console.log(`=========================================================== UPDATE PARTICLES ===========================================================`)
+        // for(let i=0; i<this.nrOfParticles; i++){
+        //     console.log(`UPDATING WEIGHT FOR ${i} PARTICLE `)
+        //     // let {nrOfPaths, wallHit}  = this.wallPassCheck(this.particles[i]);
+        //    // console.log( `NUMBER OF PATHS ->    ${nrOfPaths}\n WALLHIT ->   ${wallHit}` );
+        //     if(this.isInsideWall(this.particles[i])) {
+        //         console.log(`${i} PARTICLE HAS HIT WALL `);
+        //         this.particles[i].setWeight(0);
+        //         console.log(`${i} PARTICLE  -> \t   ${JSON.stringify(this.particles[i])}`);
+        //     }
+        //     // } else {
+        //     //     // WEIGHT UPDATE FUNCTION 
+        //     //     let [up, right, down, left] = this.distanceFromWalls(this.particles[i]);
+                
+        //     //     let minDist =  math.min(up, right, down, left);
+        //     //     ///  //????????
+        //     // }
+        // }
 
         let wSum = this.particles.map(v => v.weight).reduce((p,c) => p + c,0);
         // Normalize  Weights
         this.particles.map(v => v.weight/wSum).forEach((v, i) => arr[i].weight = v);
-
+        this.userPos.x = this.particles.reduce((s, c) => {s + c.currPoint.x * c.weight}, 0);
+        this.userPos.y = this.particles.reduce((s, c) => {s + c.currPoint.y * c.weight}, 0);
     }
 
     // RESAMPLE
     systematicResample = (particleArray) => {
-        let N = particleArray.length();
+        let N = this.getNrOfParticles();
         
         //cummulative sum of weights
         let cWeights = [];
@@ -288,64 +426,4 @@ const gaussianRandom = (m, std) => {
     return z * std + m;
 }
 
-class ParticleFilter {
-
-    // FIRST ASSUMPTION :  WE ONLY WALK IN STRAIGHT LINES 
-    propagate(particles, l, theta) {
-        for(let i=0; i<particles.length; i++) {
-            let p = particles[i];
-            let dl = gaussianRandom(0, 0.2);
-            let dth = gaussianRandom(0, 1);
-            p.prevPoint = p.currPoint;
-            p.currPoint.x += (l + dl) * math.cos(p.heading + dth + math.pi/2);
-            p.currPoint.y += (l + dl) * math.sin(p.heading + dth + math.pi/2);
-        }
-    }
-
-    update(particles, ocMap) {
-        // Update Weights in a way to be more likely to walk in the center of a corridor. (not room center)
-        let wSum = 0;
-        for(let i=0; i< particles.length; i++) {
-            if(ocMap.wallPassCheck(particles[i])) {
-                particles[i].weight = 0;
-            } else {
-                // WEIGHT FUNCTION (MAYBE WALL-LENGTH BASED)     
-                    
-                wSum += particles[i].weight;
-            }
-        }
-
-        particles.forEach(e => {
-            e.x = e.x / wSum;
-        });
-        particles.sort(function (a,b) { return b.weight - a.weight });
-        particles = particles.filter(function (p) { return p.weight > 0 });
-        
-    }
-
-    resample(particles) {
-        let wSquareSum = 0;
-        let N = particles.length;
-        for(let i=0; i<N; i++)  {
-            wSquareSum += particles[i].weight ** 2;
-        }   
-
-        let nEff = 1/wSquareSum;
-        if(nEff >= N/2)  { 
-            return particles; 
-        } else {
-            // RESAMPLE FUNCTION
-        }
-    }
-
-    run() {
-        if(!this.initialized) this.init() ;
-
-        this.propagate();
-        this.update();
-
-        this.resample();
-    }
-}
-
-export { ParticleFilter, OccupancyMap }
+export { Particle, OccupancyMap }

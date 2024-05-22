@@ -40,19 +40,16 @@ function App() {
 
 export default App;
 
-const styles = StyleSheet.create({
-  logo: {
-    width: "50%",
-    height: 100
-  },
-  navigationIcons: {
-    height: 23
-  },
-  container: {
-    alignItems: 'center'
-  },
-  externalContainer: {
-    flex: 1,
-    backgroundColor: "#081f41"
-  }
-});
+// const styles = StyleSheet.create({
+//   logo: {
+//     width: "50%",
+//     height: 100
+//   },
+//   container: {
+//     alignItems: "center"
+//   },
+//   externalContainer: {
+//     flex: 1,
+//     backgroundColor: "#081f"
+//   }
+// });

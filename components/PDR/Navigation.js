@@ -203,7 +203,6 @@ export class Navigation {
         // Clear Data History Windows 
         this.accWindow.clear();
         this.gyroWindow.clear();
-        this.magWindow.clear();
 
         // Clear Global Vars
         // SDUP
@@ -524,7 +523,7 @@ export class Navigation {
         let lenAcc = this.accWindow.length();
         let lenGyro = this.gyroWindow.length();
 
-        let lenCheck = (lenAcc === lenGyro) && (lenGyro === lenMag);
+        let lenCheck = (lenAcc === lenGyro)
 
         if (lenCheck) {
             // PUSH NEW DATA TO HISTORY ARRAYS 
@@ -643,7 +642,7 @@ export class Navigation {
         return {
             newStep: judgeFlagsObj.sdup,
             newTurn: judgeFlagsObj.uru,
-            stepLength: STEP_ARRAY.at(-1),
+            stepLength: judgeFlagsObj.sdup? STEP_ARRAY.at(-1) : 0,
             deltaTh : URU_DELTA,
         }
     }

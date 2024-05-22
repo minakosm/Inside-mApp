@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Dimensions, AppState, TouchableOpacity, Permiss
 
 // Import Canvas
 // import Canvas from "react-native-canvas";
-import { Canvas, Group, Circle, Skia, Path, Image, useImage } from "@shopify/react-native-skia";
+import { Canvas, Group, Circle, Skia, Path, Image, useImage, useCanvasRef, scale } from "@shopify/react-native-skia";
 // Import Sensor Related Libraries
 import { Gyroscope, Magnetometer, DeviceMotion } from "expo-sensors";
 import { SensorData } from "../utils/SensorData";
@@ -18,8 +18,8 @@ const { StorageAccessFramework } = FileSystem;
 
 // Custom Modules 
 import { Navigation } from "./Navigation";
-import { useSharedValue } from "react-native-reanimated";
-import { OccupancyMap } from "./ParticleFilter";
+import Animated, { useAnimatedProps, useAnimatedRef, useSharedValue } from "react-native-reanimated";
+import { OccupancyMap, Particle } from "./ParticleFilter";
 
 const _freqUpdate = 20; // 20 ms (50 hz) sample period (frequency) from motion sensors
 
@@ -37,35 +37,10 @@ const PATH = Skia.Path.Make();
 PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 
 // MAP
-const mapInfo = {
-    binaryMap: math.matrix([
-        [1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,1 ,1 ,1 ,1 ,0 ,0 ,0 ,0 ,0 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1]
-    ]),
-    height : 20,
-    width : 20,
-    resolution : 1
-}
+
+
 const occMap = new OccupancyMap();
-occMap.initMap(mapInfo);
+occMap.initParticles();
 
 export default PDRApp = () => {
 
@@ -79,10 +54,12 @@ export default PDRApp = () => {
         {translateY: 0}
     ]);
 
-    const [heading, setHeading] = useState(0);
+    const [particleTransformations, setParticleTransformations] = useState([])
 
     const dataBuffer = useRef([null, null, null, null]);
-    const imageMap = useImage(require("../../assets/maps/MAP.png"));
+    const imageMap = useImage(require("../../assets/maps/TestMap.png"), (e) => {
+        console.log(`IMAGE ERROR!!!!`)
+    });
 
     const _subscribe = () => {
         Promise.all([DeviceMotion.isAvailableAsync(), Gyroscope.isAvailableAsync(), Magnetometer.isAvailableAsync()])
@@ -97,17 +74,14 @@ export default PDRApp = () => {
 
 
                 setDeviceSub(DeviceMotion.addListener((data) => {
-
                     dataBuffer.current[0] = data.accelerationIncludingGravity;              // AccelerometerData in g
                     dataBuffer.current[1] = data.acceleration;                              // Accelerometer Data in m/s^2
-                    
                     if(dataBuffer.current.every((v) => math.isNull(v) == false)) {
                         update();                     
                     }
                 }));
 
                 Gyroscope.addListener((data) => {
-
                     dataBuffer.current[2] = data;                                           // Angle Velocity in 3-axis in rad/s
                     if(dataBuffer.current.every((v) => math.isNull(v) == false)) {
                         update();
@@ -115,7 +89,6 @@ export default PDRApp = () => {
                 });
 
                 Magnetometer.addListener((data) => {    
-
                     dataBuffer.current[3] = data;                                           // Magnetic Field Measurments in 3-axis, in uT         
                     if(dataBuffer.current.every((v) => math.isNull(v) == false)) {
                         update();
@@ -154,10 +127,10 @@ export default PDRApp = () => {
         PATH.reset();
         PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 
-        setHeading(0);
         setPathTrHistory(new Array());
         setClear(true);
         nav.reset();
+
     }
 
     const update = () => {
@@ -184,15 +157,21 @@ export default PDRApp = () => {
         magnetometerData.pushData(magObj);
 
         // Navigation
-        let navResults = nav.runEKF(accWGObj, gyroObj, magObj);
+        let navResults = nav.runEKF(accWGObj, gyroObj);
 
+        
         // Particle Filter
 
-        if(navResults.newStep) {
-            let lastPosObj = {x: nav.POSITION_HISTORY.data.x.slice(-1), y: nav.POSITION_HISTORY.data.y.slice(-1)};
-            handlePath(lastPosObj, false);
-        }
+        // if(navResults.newStep) {
+        //     let lastPosObj = {x: nav.POSITION_HISTORY.data.x.slice(-1), y: nav.POSITION_HISTORY.data.y.slice(-1)};
+        //     handlePath(lastPosObj, false);
+        // }
 
+        if(navResults.newStep || navResults.newTurn) {
+            console.log(`NAV ${JSON.stringify(navResults)}`)
+            occMap.runParticleFilter(navResults.stepLength, navResults.deltaTh);
+            // handleParticles(occMap.particles)
+        }
     }
 
     // Save Function to store localy a Data File from current Session
@@ -277,6 +256,27 @@ export default PDRApp = () => {
         
     }
 
+    const handleParticles = (particles) => {
+        let particleTrans = [];
+        console.log(`PARTICLE LENGTH`)
+        for(i=0; i<particles.length; i++) {
+            if(particles[i].weight !== 0) {
+                particleTrans[i] = [
+                    {translateX: particles[i].currPoint.x - particles[i].prevPoint.x},
+                    {translateY: particles[i].currPoint.y - particles[i].prevPoint.y},
+                ]
+            }
+            else {
+                particleTrans[i] = [
+                    {scaleX: 0},
+                    {scaleY: 0},
+                ]
+            }
+        }
+
+        setParticleTransformations([...particleTrans]);
+    }       
+
     const pathTransformation = useRef([
         {scaleX: 1},
         {scaleY: 1},
@@ -351,12 +351,10 @@ export default PDRApp = () => {
 
     const turnRight = () => {
         nav.utilTurnRight();
-        setHeading(math.round(Navigation.quaternion2rpy(nav.lastStepAtt)[2] * (180/ Math.PI)))
     }
 
     const turnLeft = () => {
         nav.utilTurnLeft();
-        setHeading(math.round(Navigation.quaternion2rpy(nav.lastStepAtt)[2] * (180/ Math.PI)))
     }
 
     useEffect(() => {
@@ -390,34 +388,29 @@ export default PDRApp = () => {
                 </TouchableOpacity>
             </View>
             <View>
-                <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT/2, marginVertical: 10}} >
+                <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT/2, marginVertical: 10}} mode='default'>
                     <Image 
                         image={imageMap} 
                         x={0}
                         y={0}
                         width={SCREEN_WIDTH} 
                         height={SCREEN_HEIGHT/2}
-                        fit="none"
+                        fit="scaleDown"
                     />
-                    <Group>
-                        <Path
-                            path={PATH}
-                            color="darkblue"
-                            style="stroke"
-                            strokeWidth={1 /(math.mean(pathTransformation.current[0].scaleX, pathTransformation.current[1].scaleY))}
-                            origin={{x: SCREEN_WIDTH/2, y: SCREEN_HEIGHT/4}}
-                            transform={pathTransformation.current}
-                            st
-                        />
-                        <Circle 
-                            cx={SCREEN_WIDTH/2}
-                            cy={SCREEN_HEIGHT/4}
-                            r={10}
-                            color={'green'}
-                            origin={{x:SCREEN_WIDTH/2, y:SCREEN_HEIGHT/4}}
-                            transform={pathTransformation.current}
-                        />
-                    </Group>
+                    {/* {new Array(occMap.getNrOfParticles()).fill(0).map((v,i) => {
+                        if(occMap.particles[i].weight) {
+                            return(
+                                <Circle 
+                                    key={i}
+                                    cx={occMap.particles[i].currPoint.x * SCREEN_WIDTH/occMap.width}
+                                    cy={occMap.particles[i].currPoint.y * SCREEN_HEIGHT/(2*occMap.height)}
+                                    r={2}
+                                    color='red'   
+                                    transform={particleTransformations[i]}  
+                                />
+                            )
+                        }
+                    })} */}
                 </Canvas>
             </View>
             <View style={styles.buttonContainer}>
@@ -434,11 +427,6 @@ export default PDRApp = () => {
                     <Text>- 45°</Text>
                 </TouchableOpacity>
             </View>
-
-            <View>
-                <Text>Current Heading {heading}°</Text>
-                <Text>Total Steps {PATH.countPoints() -1 }</Text>
-            </View>
         </View>
     );
 }
@@ -448,6 +436,7 @@ const styles = StyleSheet.create({
         marginVertical: 40,
         flex: 1,
         alignItems: 'center',
+        backgroundColor: '#081f41'
     },
     buttonContainer: {
         alignItems: 'center',
