@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, useDebugValue } from "react";
-import { StyleSheet, Text, View, Dimensions, AppState, TouchableOpacity, PermissionsAndroid, Alert } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { StyleSheet, Text, View, Dimensions, TouchableOpacity } from "react-native";
 
 // Import Canvas
 // import Canvas from "react-native-canvas";
-import { Canvas, Group, Circle, Skia, Path, Image, useImage, useCanvasRef, scale } from "@shopify/react-native-skia";
+import { Canvas, Group, Circle, Skia, Path, Image, useImage } from "@shopify/react-native-skia";
 // Import Sensor Related Libraries
 import { Gyroscope, Magnetometer, DeviceMotion } from "expo-sensors";
 import { SensorData } from "../utils/SensorData";
