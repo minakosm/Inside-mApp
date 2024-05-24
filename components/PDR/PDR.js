@@ -47,15 +47,8 @@ export default PDRApp = () => {
     const [start, setStart] = useState(false);
     const [clear, setClear] = useState(true);
     const [deviceSub, setDeviceSub] = useState();
-    const [pathTrHistory, setPathTrHistory] = useState([
-        {scaleX: 1},
-        {scaleY: 1},
-        {translateX: 0},
-        {translateY: 0}
-    ]);
 
-    const [particleTransformations, setParticleTransformations] = useState([])
-
+    const [newParticleUpdate, setNewParticleUpdate]= useState({})
     const dataBuffer = useRef([null, null, null, null]);
     const imageMap = useImage(require("../../assets/maps/TestMap.png"), (e) => {
         console.log(`IMAGE ERROR!!!!`)
@@ -117,20 +110,12 @@ export default PDRApp = () => {
 
         dataBuffer.current = [null, null, null, null];
 
-        pathTransformation.current = ([
-            {scaleX: 1},
-            {scaleY: 1},
-            {translateX: 0},
-            {translateY: 0}
-        ]);
-
         PATH.reset();
         PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 
-        setPathTrHistory(new Array());
         setClear(true);
         nav.reset();
-
+        occMap.clear();
     }
 
     const update = () => {
@@ -170,7 +155,7 @@ export default PDRApp = () => {
         if(navResults.newStep || navResults.newTurn) {
             console.log(`NAV ${JSON.stringify(navResults)}`)
             occMap.runParticleFilter(navResults.stepLength, navResults.deltaTh);
-            // handleParticles(occMap.particles)
+            setNewParticleUpdate({step: navResults.stepLength, turn: navResults.deltaTh})
         }
     }
 
@@ -256,97 +241,12 @@ export default PDRApp = () => {
         
     }
 
-    const handleParticles = (particles) => {
-        let particleTrans = [];
-        console.log(`PARTICLE LENGTH`)
-        for(i=0; i<particles.length; i++) {
-            if(particles[i].weight !== 0) {
-                particleTrans[i] = [
-                    {translateX: particles[i].currPoint.x - particles[i].prevPoint.x},
-                    {translateY: particles[i].currPoint.y - particles[i].prevPoint.y},
-                ]
-            }
-            else {
-                particleTrans[i] = [
-                    {scaleX: 0},
-                    {scaleY: 0},
-                ]
-            }
-        }
-
-        setParticleTransformations([...particleTrans]);
-    }       
-
-    const pathTransformation = useRef([
-        {scaleX: 1},
-        {scaleY: 1},
-        {translateX: 0},
-        {translateY: 0}
-    ]);
-    let sc = 5;
-    const MARGIN = 50;
-
-    const handlePath = (lastPosObj, remove) => {
-        if(remove) { 
-            if(PATH.countPoints() == 1) {return;}
-
-            let cmds = PATH.toCmds();
-            cmds.pop();
-            cmds[0] = [0, SCREEN_WIDTH/2, SCREEN_HEIGHT/4];
-            let tempPath = Skia.Path.MakeFromCmds(cmds);
-            PATH.reset();
-            PATH.addPath(tempPath);
-            
-            setPathTrHistory(() => {
-                if(pathTrHistory.length == 1) {return pathTrHistory}
-                pathTrHistory.pop();
-                return [...pathTrHistory]
-            });
-            pathTransformation.current = pathTrHistory.at(-1);
-            return;
-        } else {
-
-            let Wscale = SCREEN_WIDTH / sc;
-            let Hscale = SCREEN_HEIGHT / (2 * sc);
-
-            let px = lastPosObj.x * Wscale;
-            let py = lastPosObj.y * Hscale;
-            PATH.lineTo(SCREEN_WIDTH/2 + px, SCREEN_HEIGHT/4 - py);
-
-            let {x: xBound, y: yBound, width: wBound, height: hBound} = PATH.getBounds();
-
-            let scX = pathTransformation.current[0].scaleX;
-            let scY = pathTransformation.current[1].scaleY;
-            let trX = pathTransformation.current[2].translateX;
-            let trY = pathTransformation.current[3].translateY; 
-
-            // SCALING
-            if(wBound > SCREEN_WIDTH - MARGIN) {scX = SCREEN_WIDTH/(wBound + MARGIN);}
-            if(hBound > SCREEN_HEIGHT/2 - MARGIN) {scY = SCREEN_HEIGHT/(2*hBound + MARGIN);}
-
-            // TRANSLATING
-            // Translate the Path Boundaries Center to Canvas Center
-            trX = SCREEN_WIDTH/2 - xBound - wBound/2;
-            trY = SCREEN_HEIGHT/4 - yBound - hBound/2;
-
-            pathTransformation.current = [
-                {scaleX: scX},
-                {scaleY: scY},
-                {translateX: trX},
-                {translateY: trY}
-            ];
-            setPathTrHistory([...pathTrHistory, pathTransformation.current]);
-        }
-    }
-
     const addStep = () => {
         nav.utilAddStep();
-        handlePath({x: nav.POSITION_HISTORY.data.x.at(-1), y: nav.POSITION_HISTORY.data.y.at(-1)}, false);
     }
 
     const removeStep = () => {
         nav.utilRemoveStep();
-        handlePath(null, true);
     }
 
     const turnRight = () => {
@@ -397,7 +297,7 @@ export default PDRApp = () => {
                         height={SCREEN_HEIGHT/2}
                         fit="scaleDown"
                     />
-                    {/* {new Array(occMap.getNrOfParticles()).fill(0).map((v,i) => {
+                    {new Array(occMap.particles.length).fill(0).map((v,i) => {
                         if(occMap.particles[i].weight) {
                             return(
                                 <Circle 
@@ -406,11 +306,16 @@ export default PDRApp = () => {
                                     cy={occMap.particles[i].currPoint.y * SCREEN_HEIGHT/(2*occMap.height)}
                                     r={2}
                                     color='red'   
-                                    transform={particleTransformations[i]}  
                                 />
                             )
                         }
-                    })} */}
+                    })}
+                    <Circle 
+                        cx={occMap.userPos.x * SCREEN_WIDTH/occMap.width}
+                        cy={occMap.userPos.y * SCREEN_HEIGHT/(2*occMap.height)}
+                        r={8}
+                        color='green'
+                    />
                 </Canvas>
             </View>
             <View style={styles.buttonContainer}>
