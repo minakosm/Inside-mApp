@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Dimensions, TouchableOpacity } from "react-nati
 
 // Import Canvas
 // import Canvas from "react-native-canvas";
-import { Canvas, Group, Circle, Skia, Path, Image, useImage } from "@shopify/react-native-skia";
+import { Canvas, Group, Circle, Skia, Path, Image, useImage, ImageSVG } from "@shopify/react-native-skia";
 // Import Sensor Related Libraries
 import { Gyroscope, Magnetometer, DeviceMotion } from "expo-sensors";
 import { SensorData } from "../utils/SensorData";
@@ -18,8 +18,11 @@ const { StorageAccessFramework } = FileSystem;
 
 // Custom Modules 
 import { Navigation } from "./Navigation";
-import Animated, { useAnimatedProps, useAnimatedRef, useSharedValue } from "react-native-reanimated";
+import Animated, { runOnJS, useAnimatedProps, useAnimatedReaction, useAnimatedRef, useAnimatedSensor, useSharedValue } from "react-native-reanimated";
 import { OccupancyMap, Particle } from "./ParticleFilter";
+
+// Gestures
+import { GestureHandlerRootView, GestureDetector, Gesture } from "react-native-gesture-handler";
 
 const _freqUpdate = 20; // 20 ms (50 hz) sample period (frequency) from motion sensors
 
@@ -38,11 +41,15 @@ PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 
 // MAP
 
-
 const occMap = new OccupancyMap();
-occMap.initParticles();
+//occMap.initParticles();
+const svg = Skia.SVG.MakeFromString(
+    `<svg data-name="1-Arrow Up" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+    <path d="m26.71 10.29-10-10a1 1 0 0 0-1.41 0l-10 10 1.41 1.41L15 3.41V32h2V3.41l8.29 8.29z"/>
+    </svg>`
+);
 
-export default PDRApp = () => {
+export default PDRApp = (props) => {
 
     const [start, setStart] = useState(false);
     const [clear, setClear] = useState(true);
@@ -50,9 +57,56 @@ export default PDRApp = () => {
 
     const [newParticleUpdate, setNewParticleUpdate]= useState({})
     const dataBuffer = useRef([null, null, null, null]);
+    
+    const userTapPos = useSharedValue({
+        x: 0,
+        y: 0
+    });
+
+    const tapGesture = Gesture.Tap()
+            .maxDuration(250)
+            .numberOfTaps(2)
+            .onStart((e) => {
+                userTapPos.value = { x: e.x, y: e.y };
+                runOnJS(setInitPos)(e.x, e.y);
+            });
+    
+    const panGesture = Gesture.Pan()
+            .activateAfterLongPress(200)
+            .onUpdate((e) => {
+                // console.log(`PAN UPDATE ${e.translationX} ${e.translationY}`);
+                
+               runOnJS(angleLog)(-e.translationX, -e.translationY);
+            })
+            .onEnd((e) => {
+                runOnJS(setInitHeading)(-e.translationX, -e.translationY);
+            })
+    
+    const simulGesture = Gesture.Simultaneous(tapGesture, panGesture);
+
+    function angleLog(y, x) {
+        console.log(`PAN HEADING ${math.atan2(y, x) * 180/math.pi}`)
+    };
+    
+
     const imageMap = useImage(require("../../assets/maps/TestMap.png"), (e) => {
         console.log(`IMAGE ERROR!!!!`)
     });
+
+    function setInitPos(pxX, pxY) {
+        let userX = pxX * occMap.width/SCREEN_WIDTH;
+        let userY = pxY * (2 * occMap.height)/SCREEN_HEIGHT;
+        console.log(`USER POS ${userX}, ${userY}`)
+        occMap.setEstimatedPos(userX, userY);
+        setNewParticleUpdate({updt: true});
+    }
+
+    function setInitHeading(y, x) {
+        let theta = math.atan2(y, x) * 180/math.pi;
+        occMap.setEstimatedHeading(theta);
+        occMap.initParticles();
+        setNewParticleUpdate({updt: true});
+    }
 
     const _subscribe = () => {
         Promise.all([DeviceMotion.isAvailableAsync(), Gyroscope.isAvailableAsync(), Magnetometer.isAvailableAsync()])
@@ -109,11 +163,12 @@ export default PDRApp = () => {
         magnetometerData.clear();
 
         dataBuffer.current = [null, null, null, null];
-
+        userTapPos.value = {x:null, y:null};
         PATH.reset();
         PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 
         setClear(true);
+        setNewParticleUpdate({updt: false})
         nav.reset();
         occMap.clear();
     }
@@ -287,37 +342,58 @@ export default PDRApp = () => {
                     <Text>{"PLAYBACK"}</Text>
                 </TouchableOpacity>
             </View>
-            <View>
-                <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT/2, marginVertical: 10}} mode='default'>
-                    <Image 
-                        image={imageMap} 
-                        x={0}
-                        y={0}
-                        width={SCREEN_WIDTH} 
-                        height={SCREEN_HEIGHT/2}
-                        fit="scaleDown"
-                    />
-                    {new Array(occMap.particles.length).fill(0).map((v,i) => {
-                        if(occMap.particles[i].weight) {
-                            return(
-                                <Circle 
-                                    key={i}
-                                    cx={occMap.particles[i].currPoint.x * SCREEN_WIDTH/occMap.width}
-                                    cy={occMap.particles[i].currPoint.y * SCREEN_HEIGHT/(2*occMap.height)}
-                                    r={2}
-                                    color='red'   
-                                />
-                            )
-                        }
-                    })}
-                    <Circle 
-                        cx={occMap.userPos.x * SCREEN_WIDTH/occMap.width}
-                        cy={occMap.userPos.y * SCREEN_HEIGHT/(2*occMap.height)}
-                        r={8}
-                        color='green'
-                    />
-                </Canvas>
-            </View>
+            <GestureHandlerRootView style={{flex: 1}}>
+                <GestureDetector gesture={simulGesture}>
+                    <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT/2, marginVertical: 10}} mode='default'>
+                        <Image 
+                            image={imageMap} 
+                            x={0}
+                            y={0}
+                            width={SCREEN_WIDTH} 
+                            height={SCREEN_HEIGHT/2}
+                            fit="scaleDown"
+                        />
+                        {new Array(occMap.particles.length).fill(0).map((v,i) => {
+                            if(occMap.particles[i].weight) {
+                                return(
+                                    <Circle 
+                                        key={i}
+                                        cx={occMap.particles[i].currPoint.x * SCREEN_WIDTH/occMap.width}
+                                        cy={occMap.particles[i].currPoint.y * SCREEN_HEIGHT/(2*occMap.height)}
+                                        r={2}
+                                        color='red'   
+                                    />
+                                )
+                            }
+                        })}
+                        {new Array(1).fill(0).map((v,i) => {
+                            if(occMap.estimatedPos.x !== null || occMap.estimatedPos.y !== null) {
+                                return (
+                                    <Group>
+                                        <Circle
+                                        key={`circle-${i}`}
+                                        cx={occMap.estimatedPos.x * SCREEN_WIDTH/occMap.width}
+                                        cy={occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.height)}
+                                        r={6}
+                                        color='green'
+                                    />
+                                    <ImageSVG 
+                                        key={`svg-${i}`}
+                                        svg={svg}
+                                        x={occMap.estimatedPos.x * SCREEN_WIDTH/occMap.width -10}
+                                        y={occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.height)-20}
+                                        width={20}
+                                        height={20}
+                                    />
+                                    </Group>
+                                    
+                                    
+                                )
+                            }
+                        })}         
+                    </Canvas>
+                </GestureDetector>
+            </GestureHandlerRootView>
             <View style={styles.buttonContainer}>
                 <TouchableOpacity onPress={addStep} style={styles.button}>
                     <Text>+ Step</Text>

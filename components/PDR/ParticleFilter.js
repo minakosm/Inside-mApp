@@ -88,30 +88,50 @@ class OccupancyMap {
     resolution = mapInfo.resolution;
     
     initializedPF = false;
+    initializedUserPosition = false;
+    initializedUserHeading = false;
     particles = [];
 
-    userPos = {
+    estimatedPos = {
         x: null,
         y: null,
         heading: null
     }
 
+
     // GETTERS - SETTERS
     getNrOfParticles = () => {return this.nrOfParticles;}
     setNrOfParticles = (nrOfParticles) => {this.nrOfParticles = nrOfParticles;}
+
+    setEstimatedPos = (x, y) => {
+        this.estimatedPos.x = x;
+        this.estimatedPos.y = y;
+
+        this.initializedPF = false;
+        this.initializedUserPosition = true;
+        console.log(`INIT POS`);
+    }
+    setEstimatedHeading = (theta) => {
+        this.estimatedPos.heading = theta;
+        this.initializedUserHeading = true;
+        console.log(`INIT HEADING`)
+    }
 
     isPFInitialized = () => {return this.initializedPF;}
 
     clear = () => {
 
+        this.initializedUserPosition = false;
+        this.initializedUserHeading = false;
         this.initializedPF = false;
         this.particles = [];
 
-        this.userPos = {
+        this.estimatedPos = {
             x: null,
             y: null,
             heading: null
         }
+
     }
 
     initMap = (mapInfo) => {
@@ -129,16 +149,29 @@ class OccupancyMap {
     // PARTICLE FILTER INITIALIZATION
     initParticles = () => {
         console.log(`INIT ${this.nrOfParticles} PARTICLES`)
-        for( let i = 0 ; i<this.nrOfParticles; i++) {
-            let p = new Particle() ;
-            do {
-                p.currPoint.x = p.prevPoint.x = math.random(0, this.width-1);
-                p.currPoint.y = p.prevPoint.y = math.random(0, this.height-1);
-                p.heading = math.random(-120, 120);
-            } while (this.isInsideWall(p));
-
-            p.weight = 1/this.nrOfParticles;
-            this.particles[i] = JSON.parse(JSON.stringify(p));
+        if(!this.initializedUserPosition && !this.initializedUserHeading) {
+            for( let i = 0 ; i<this.nrOfParticles; i++) {
+                let p = new Particle();
+                do {
+                    p.currPoint.x = p.prevPoint.x = math.random(0, this.width-1);
+                    p.currPoint.y = p.prevPoint.y = math.random(0, this.height-1);
+                    p.heading = math.random(-120, 120);
+                } while (this.isInsideWall(p));
+    
+                p.weight = 1/this.nrOfParticles;
+                this.particles[i] = JSON.parse(JSON.stringify(p));
+            }
+        } else {
+            for(let i=0; i<this.nrOfParticles; i++) {
+                let p = new Particle();
+                do {
+                    p.currPoint.x = this.estimatedPos.x;
+                    p.currPoint.y = this.estimatedPos.y;
+                    p.heading = math.random(this.estimatedPos.heading - 5, this.estimatedPos.heading + 5);
+                } while (this.isInsideWall(p))
+                p.weight = 1/this.nrOfParticles;
+                this.particles[i] = JSON.parse(JSON.stringify(p));
+            }
         }
 
         // console.log(`=========================================================== INIT PARTICLES ===========================================================`)
@@ -146,9 +179,9 @@ class OccupancyMap {
         //     console.log(`${i} PARTICLE ->   \t ${JSON.stringify(v)}`)
         // })
         // console.log(`=========================================================== INIT PARTICLES ===========================================================`)
-        this.userPos.x = math.random(0, this.width-1);
-        this.userPos.y = math.random(0, this.height-1);
-        this.userPos.heading = math.pickRandom([-90, 0, 90]);
+        // this.estimatedPos.x = math.random(0, this.width-1);
+        // this.estimatedPos.y = math.random(0, this.height-1);
+        // this.estimatedPos.heading = math.pickRandom([-90, 0, 90]);
         
         this.initializedPF = true;
     }    
@@ -307,7 +340,10 @@ class OccupancyMap {
     }
 
     runParticleFilter = (stepLength, yawChange) => {
-        if(!this.initializedPF) { this.initParticles()}
+        if(!this.initializedPF) { 
+            this.initParticles();
+            return; 
+        }
         this.moveParticles(stepLength, yawChange);
 
         this.updateWeights();
@@ -363,9 +399,9 @@ class OccupancyMap {
             }           
         }
         
-        this.userPos.heading = this.userPos.heading + deltaTheta;
-        this.userPos.x = this.userPos.x + l*(-math.sin(this.userPos.heading * math.pi/180));
-        this.userPos.y = this.userPos.y + l*(-math.cos(this.userPos.heading * math.pi/180));
+        this.estimatedPos.heading = this.estimatedPos.heading + deltaTheta;
+        this.estimatedPos.x = this.estimatedPos.x + l*(-math.sin(this.estimatedPos.heading * math.pi/180));
+        this.estimatedPos.y = this.estimatedPos.y + l*(-math.cos(this.estimatedPos.heading * math.pi/180));
             // this.particles.forEach((v, i) =>{
             //     console.log(`${i} PARTICLE ->   \t ${JSON.stringify(v)}`)
             // })

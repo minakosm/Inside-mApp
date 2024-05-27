@@ -1,4 +1,3 @@
-import { filter } from "./Filters";
 
 class SensorData {
     constructor() {
@@ -54,12 +53,5 @@ class SensorData {
 
 }
 
-// class AccelerometerSensorData extends SensorData {
-//     constructor(...args) {
-//         super(...args);
-//     }
-
-    
-// }
 
 export {SensorData};
