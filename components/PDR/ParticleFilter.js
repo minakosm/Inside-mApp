@@ -95,7 +95,7 @@ class OccupancyMap {
     estimatedPos = {
         x: null,
         y: null,
-        heading: null
+        heading: 0
     }
 
 
@@ -126,10 +126,11 @@ class OccupancyMap {
         this.initializedPF = false;
         this.particles = [];
 
+
         this.estimatedPos = {
             x: null,
             y: null,
-            heading: null
+            heading: 0
         }
 
     }
@@ -221,12 +222,9 @@ class OccupancyMap {
         };
         
         if(this.isOutOfBounds(currCell.x, currCell.y) || this.isInsideWall(particle)) {
-            console.log(`WALL RETURN 0`)
             return {wallHit: true, nrOfPaths: 0};
         }
-        console.log(`WALL DBG 1`)
-        if(math.norm([distance.x, distance.y])  == 1) {
-            console.log(`WALL RETURN 1`);
+        if(math.norm([distance.x, distance.y])  <= 1) {
             return {wallHit: false, nrOfPaths: 1};
         }
 
@@ -236,14 +234,13 @@ class OccupancyMap {
         let xMin = prevCell.y === null ? currCell.x : math.min(currCell.x, prevCell.x);
         let xMax = prevCell.y === null ? currCell.x : math.max(currCell.x, prevCell.x);
 
-        console.log(`Y min: ${yMin}, max: ${yMax}`);
-        console.log(`X min: ${xMin}, max: ${xMax}`);
+
         let A = this.mapData.subset(math.index(
             math.range(yMin,  yMax, true), 
             math.range(xMin,  xMax, true)
         ));
 
-        console.log(`WALL DBG 2`)
+
         let [r, c] = A.size();
         
         let iStart = distance.y > 0 ? 0 : r-1;
@@ -256,25 +253,22 @@ class OccupancyMap {
         let dirY = math.sign(distance.y);
 
         A.set([iStart, jStart], 1);
-        console.log(`WALL DBG 3`)
         for(let j = jStart + dirX; j !== jEnd + dirX; j+=dirX)  {
             if(A.get([iStart,j]) === 0 ) {
                 A.set([iStart,j], A.get([iStart, j-dirX]))
             } else {
                 A.set([iStart,j], 0);
             }
-        }
-        console.log(`WALL DBG 4`)    
-        for(i=iStart+dirY; i!== iEnd + dirY; i+=dirY) {
+        } 
+        for(let i=iStart+dirY; i!== iEnd + dirY; i+=dirY) {
             if(A.get([i, jStart]) === 0) {
               A.set([i, jStart], A.get([i-dirY, jStart]))
             } else {
               A.set([i,jStart], 0);
             }
         }
-        console.log(`WALL DBG 5`)
         for(let i=iStart+dirY; i!== iEnd+dirY; i+=dirY) {
-            for(let j=jStart+dirX; j!=jEnd+dirY; j+=dirX) {
+            for(let j=jStart+dirX; j!=jEnd+dirX; j+=dirX) {
                 if(A.get([i,j]) === 0) {
                     A.set([i,j], A.get([i-dirY,j]) + A.get([i,j-dirX]));
                 } else {
@@ -282,7 +276,6 @@ class OccupancyMap {
                 }
             }
         }
-        console.log(`WALL DBG 6`)
         return {wallHit: A.get([iEnd, jEnd]) === 0, nrOfPaths: A.get([iEnd, jEnd])};
     }
 
@@ -412,17 +405,18 @@ class OccupancyMap {
     updateWeights = () => {
         let c = 0;
         for (let p of this.particles) {
-            if(p.weight != 0){
-                let inWall = this.isInsideWall(p);
+            if(p.weight !== 0){
+                let inWall = this.wallPassCheck(p).wallHit;
                 if(inWall) {
                     p.weight = 0;
                     p.currPoint.x = p.currPoint.y = 0;
                     p.prevPoint.x = p.prevPoint.y = 0;
-            } 
-            // else {
-            //     let [up, right, down, left] = this.distanceFromWalls(this.particles[i]);
-            //     minDist =  math.min(up, right, down, left);
-            // }
+                } else {
+                let [up, right, down, left] = this.distanceFromWalls(p);
+                minDist =  math.min(up, right, down, left);
+
+                if(minDist < 0.4) {p.weight = p.weight/2}
+            }
         }
 
         }

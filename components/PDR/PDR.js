@@ -18,7 +18,7 @@ const { StorageAccessFramework } = FileSystem;
 
 // Custom Modules 
 import { Navigation } from "./Navigation";
-import Animated, { runOnJS, useAnimatedProps, useAnimatedReaction, useAnimatedRef, useAnimatedSensor, useSharedValue } from "react-native-reanimated";
+import Animated, { interpolateColor, runOnJS, useAnimatedProps, useAnimatedReaction, useAnimatedRef, useAnimatedSensor, useSharedValue } from "react-native-reanimated";
 import { OccupancyMap, Particle } from "./ParticleFilter";
 
 // Gestures
@@ -72,7 +72,7 @@ export default PDRApp = (props) => {
             });
     
     const panGesture = Gesture.Pan()
-            .activateAfterLongPress(200)
+            .activateAfterLongPress(150)
             .onUpdate((e) => {
                 // console.log(`PAN UPDATE ${e.translationX} ${e.translationY}`);
                 
@@ -98,6 +98,7 @@ export default PDRApp = (props) => {
         let userY = pxY * (2 * occMap.height)/SCREEN_HEIGHT;
         console.log(`USER POS ${userX}, ${userY}`)
         occMap.setEstimatedPos(userX, userY);
+        occMap.initParticles();
         setNewParticleUpdate({updt: true});
     }
 
@@ -207,7 +208,7 @@ export default PDRApp = (props) => {
         //     handlePath(lastPosObj, false);
         // }
 
-        if(navResults.newStep || navResults.newTurn) {
+        if(navResults.newStep || navResults.newTurn || !occMap.isPFInitialized()) {
             console.log(`NAV ${JSON.stringify(navResults)}`)
             occMap.runParticleFilter(navResults.stepLength, navResults.deltaTh);
             setNewParticleUpdate({step: navResults.stepLength, turn: navResults.deltaTh})
@@ -361,7 +362,7 @@ export default PDRApp = (props) => {
                                         cx={occMap.particles[i].currPoint.x * SCREEN_WIDTH/occMap.width}
                                         cy={occMap.particles[i].currPoint.y * SCREEN_HEIGHT/(2*occMap.height)}
                                         r={2}
-                                        color='red'   
+                                        color='red'
                                     />
                                 )
                             }
@@ -369,13 +370,15 @@ export default PDRApp = (props) => {
                         {new Array(1).fill(0).map((v,i) => {
                             if(occMap.estimatedPos.x !== null || occMap.estimatedPos.y !== null) {
                                 return (
-                                    <Group>
+                                    <Group 
+                                    origin={{x: occMap.estimatedPos.x * SCREEN_WIDTH/occMap.width, y: occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.height)}}
+                                    transform = {[{ rotateZ: -occMap.estimatedPos.heading * math.pi/180 }]}>
                                         <Circle
                                         key={`circle-${i}`}
                                         cx={occMap.estimatedPos.x * SCREEN_WIDTH/occMap.width}
                                         cy={occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.height)}
                                         r={6}
-                                        color='green'
+                                        color='blue'
                                     />
                                     <ImageSVG 
                                         key={`svg-${i}`}
