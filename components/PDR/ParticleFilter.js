@@ -234,7 +234,6 @@ class OccupancyMap {
         let xMin = prevCell.y === null ? currCell.x : math.min(currCell.x, prevCell.x);
         let xMax = prevCell.y === null ? currCell.x : math.max(currCell.x, prevCell.x);
 
-
         let A = this.mapData.subset(math.index(
             math.range(yMin,  yMax, true), 
             math.range(xMin,  xMax, true)
@@ -272,7 +271,7 @@ class OccupancyMap {
                 if(A.get([i,j]) === 0) {
                     A.set([i,j], A.get([i-dirY,j]) + A.get([i,j-dirX]));
                 } else {
-                    A.set([i,j] = 0);
+                    A.set([i,j], 0);
                 }
             }
         }
