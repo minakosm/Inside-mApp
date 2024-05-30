@@ -72,7 +72,7 @@ export default PDRApp = (props) => {
             });
     
     const panGesture = Gesture.Pan()
-            .activateAfterLongPress(150)
+            .activateAfterLongPress(250)
             .onUpdate((e) => {
                 // console.log(`PAN UPDATE ${e.translationX} ${e.translationY}`);
                 

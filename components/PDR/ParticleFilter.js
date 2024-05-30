@@ -222,10 +222,10 @@ class OccupancyMap {
         };
         
         if(this.isOutOfBounds(currCell.x, currCell.y) || this.isInsideWall(particle)) {
-            return {wallHit: true, nrOfPaths: 0};
+            return {wallHit: true, potential: 0};
         }
         if(math.norm([distance.x, distance.y])  <= 1) {
-            return {wallHit: false, nrOfPaths: 1};
+            return {wallHit: false, potential: 1};
         }
 
         let yMin = prevCell.y === null ? currCell.y : math.min(currCell.y, prevCell.y);
@@ -241,7 +241,8 @@ class OccupancyMap {
 
 
         let [r, c] = A.size();
-        
+        let maxPotentialPaths = maxPaths(r, c);
+
         let iStart = distance.y > 0 ? 0 : r-1;
         let jStart = distance.x > 0 ? 0 : c-1;
 
@@ -275,7 +276,7 @@ class OccupancyMap {
                 }
             }
         }
-        return {wallHit: A.get([iEnd, jEnd]) === 0, nrOfPaths: A.get([iEnd, jEnd])};
+        return {wallHit: A.get([iEnd, jEnd]) === 0, potential: A.get([iEnd, jEnd]) / maxPotentialPaths};
     }
 
     distanceFromWalls = (particle) => {
@@ -405,16 +406,19 @@ class OccupancyMap {
         let c = 0;
         for (let p of this.particles) {
             if(p.weight !== 0){
-                let inWall = this.wallPassCheck(p).wallHit;
-                if(inWall) {
+                let {wallHit, potential} = this.wallPassCheck(p);
+                console.log(`hitWall> ${wallHit}    ptntl ${potential}`);
+                if(wallHit) {
                     p.weight = 0;
                     p.currPoint.x = p.currPoint.y = 0;
                     p.prevPoint.x = p.prevPoint.y = 0;
                 } else {
+
+                p.weight = p.weight * potential;
                 let [up, right, down, left] = this.distanceFromWalls(p);
                 minDist =  math.min(up, right, down, left);
-
-                if(minDist < 0.4) {p.weight = p.weight/2}
+                if(minDist < 0.4) {p.weight = p.weight * 0.8}
+                
             }
         }
 
@@ -467,6 +471,12 @@ const gaussianRandom = (m, std) => {
     const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 
     return z * std + m;
+}
+
+function maxPaths(m, n) {
+    if(m === 1 || n === 1) return 1;
+
+    return maxPaths(m-1, n) + maxPaths(m, n-1);
 }
 
 export { Particle, OccupancyMap }
