@@ -222,10 +222,10 @@ class OccupancyMap {
         };
         
         if(this.isOutOfBounds(currCell.x, currCell.y) || this.isInsideWall(particle)) {
-            return {wallHit: true, potential: 0};
+            return 0;
         }
         if(math.norm([distance.x, distance.y])  <= 1) {
-            return {wallHit: false, potential: 1};
+            return 1;
         }
 
         let yMin = prevCell.y === null ? currCell.y : math.min(currCell.y, prevCell.y);
@@ -241,7 +241,6 @@ class OccupancyMap {
 
 
         let [r, c] = A.size();
-        let maxPotentialPaths = maxPaths(r, c);
 
         let iStart = distance.y > 0 ? 0 : r-1;
         let jStart = distance.x > 0 ? 0 : c-1;
@@ -249,34 +248,38 @@ class OccupancyMap {
         let iEnd = distance.y > 0 ? r-1 : 0;
         let jEnd = distance.x > 0 ? c-1 : 0;
 
-        let dirX = math.sign(distance.x);
-        let dirY = math.sign(distance.y);
+        // let dirX = math.sign(distance.x);
+        // let dirY = math.sign(distance.y);
 
-        A.set([iStart, jStart], 1);
-        for(let j = jStart + dirX; j !== jEnd + dirX; j+=dirX)  {
-            if(A.get([iStart,j]) === 0 ) {
-                A.set([iStart,j], A.get([iStart, j-dirX]))
-            } else {
-                A.set([iStart,j], 0);
-            }
-        } 
-        for(let i=iStart+dirY; i!== iEnd + dirY; i+=dirY) {
-            if(A.get([i, jStart]) === 0) {
-              A.set([i, jStart], A.get([i-dirY, jStart]))
-            } else {
-              A.set([i,jStart], 0);
-            }
-        }
-        for(let i=iStart+dirY; i!== iEnd+dirY; i+=dirY) {
-            for(let j=jStart+dirX; j!=jEnd+dirX; j+=dirX) {
-                if(A.get([i,j]) === 0) {
-                    A.set([i,j], A.get([i-dirY,j]) + A.get([i,j-dirX]));
-                } else {
-                    A.set([i,j], 0);
-                }
-            }
-        }
-        return {wallHit: A.get([iEnd, jEnd]) === 0, potential: A.get([iEnd, jEnd]) / maxPotentialPaths};
+
+        let pot = findPaths(A, [iStart, jStart], [iEnd, jEnd]);
+        return pot;
+
+        // A.set([iStart, jStart], 1);
+        // for(let j = jStart + dirX; j !== jEnd + dirX; j+=dirX)  {
+        //     if(A.get([iStart,j]) === 0 ) {
+        //         A.set([iStart,j], A.get([iStart, j-dirX]))
+        //     } else {
+        //         A.set([iStart,j], 0);
+        //     }
+        // } 
+        // for(let i=iStart+dirY; i!== iEnd + dirY; i+=dirY) {
+        //     if(A.get([i, jStart]) === 0) {
+        //       A.set([i, jStart], A.get([i-dirY, jStart]))
+        //     } else {
+        //       A.set([i,jStart], 0);
+        //     }
+        // }
+        // for(let i=iStart+dirY; i!== iEnd+dirY; i+=dirY) {
+        //     for(let j=jStart+dirX; j!=jEnd+dirX; j+=dirX) {
+        //         if(A.get([i,j]) === 0) {
+        //             A.set([i,j], A.get([i-dirY,j]) + A.get([i,j-dirX]));
+        //         } else {
+        //             A.set([i,j], 0);
+        //         }
+        //     }
+        // }
+        // return {wallHit: A.get([iEnd, jEnd]) === 0, potential: A.get([iEnd, jEnd]) / maxPotentialPaths};
     }
 
     distanceFromWalls = (particle) => {
@@ -392,9 +395,9 @@ class OccupancyMap {
             }           
         }
         
-        this.estimatedPos.heading = this.estimatedPos.heading + deltaTheta;
-        this.estimatedPos.x = this.estimatedPos.x + l*(-math.sin(this.estimatedPos.heading * math.pi/180));
-        this.estimatedPos.y = this.estimatedPos.y + l*(-math.cos(this.estimatedPos.heading * math.pi/180));
+        // this.estimatedPos.heading = this.estimatedPos.heading + deltaTheta;
+        // this.estimatedPos.x = this.estimatedPos.x + l*(-math.sin(this.estimatedPos.heading * math.pi/180));
+        // this.estimatedPos.y = this.estimatedPos.y + l*(-math.cos(this.estimatedPos.heading * math.pi/180));
             // this.particles.forEach((v, i) =>{
             //     console.log(`${i} PARTICLE ->   \t ${JSON.stringify(v)}`)
             // })
@@ -403,12 +406,10 @@ class OccupancyMap {
 
     // UPDATE
     updateWeights = () => {
-        let c = 0;
         for (let p of this.particles) {
             if(p.weight !== 0){
-                let {wallHit, potential} = this.wallPassCheck(p);
-                console.log(`hitWall> ${wallHit}    ptntl ${potential}`);
-                if(wallHit) {
+                let potential = this.wallPassCheck(p);
+                if(potential === 0 ) {
                     p.weight = 0;
                     p.currPoint.x = p.currPoint.y = 0;
                     p.prevPoint.x = p.prevPoint.y = 0;
@@ -428,6 +429,13 @@ class OccupancyMap {
         // Normalize  Weights
         this.particles.map(v => v.weight/wSum).forEach((v, i) => this.particles[i].weight = v);
 
+        this.particles.sort((a, b) => b.weight - a.weight);
+
+        let halfBestParticles = math.subset(this.particles, math.index(math.range(0,this.nrOfParticles/2)));
+        let weightedSum = halfBestParticles.reduce((sum, value) => sum + value.weight, 0);
+        this.estimatedPos.x = halfBestParticles.reduce((sum, v) => sum + v.currPoint.x * v.weight, 0) / weightedSum;
+        this.estimatedPos.y = halfBestParticles.reduce((sum, v) => sum + v.currPoint.y * v.weight, 0) / weightedSum;
+        this.estimatedPos.heading = halfBestParticles.reduce((sum, v) => sum + v.heading * v.weight, 0) / weightedSum;
     }
 
     // RESAMPLE
@@ -473,10 +481,55 @@ const gaussianRandom = (m, std) => {
     return z * std + m;
 }
 
-function maxPaths(m, n) {
-    if(m === 1 || n === 1) return 1;
+function findPaths(mat, start, end) {
 
-    return maxPaths(m-1, n) + maxPaths(m, n-1);
+    let [rows, cols] = mat.size();
+    let [startX, startY] = start;
+    let [endX, endY] = end;
+
+    if (mat.get([startX, startY]) === 1 || mat.get([endX, endY]) === 1) {
+        return 0; // No paths if start or end is blocked
+    }
+
+    let directions = [
+        [0, 1], // right
+        [1, 0], // down
+        [0, -1], // left
+        [-1, 0] // up
+    ];
+
+    let queue = [[[startX, startY], [[startX, startY]]]]; // [[(x, y), path]]
+    let paths = [];
+
+    while (queue.length > 0) {
+        let [[x, y], path] = queue.shift();
+
+        if (x === endX && y === endY) {
+            paths.push(path);
+            continue;
+        }
+
+        for (let [dx, dy] of directions) {
+            let nx = x + dx;
+            let ny = y + dy;
+
+            if (nx >= 0 && nx < rows && ny >= 0 && ny < cols && mat.get([nx, ny]) === 0 && !path.some(([px, py]) => px === nx && py === ny)) {
+                queue.push([[nx, ny], path.concat([[nx, ny]])]);
+            }
+        }
+    }
+
+    let pathMatrix = math.zeros(rows,cols);
+
+    for(let path of paths) {
+        for(let [x, y] of path) {
+            pathMatrix.set([x, y], 1);
+        }
+    }
+
+    return math.sum(pathMatrix) / (rows * cols);
 }
+
+
 
 export { Particle, OccupancyMap }
