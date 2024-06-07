@@ -1,13 +1,11 @@
 import * as math from "mathjs";
 
-// DEBBUG
-let DEBUG_1 = 0;
 //==============================================================================================================//
 // Constants 
 const WINDOW = 25;
 //==============================================================================================================//
 // ZEMU
-const ZEMU_VAR_ACC_THRESH = 0.25;
+const ZEMU_VAR_ACC_THRESH = 0.1;
 //==============================================================================================================//
 // SDUP
 const SDUP_N = 6;                               // Low Pass Filter 'Order' 
@@ -319,6 +317,42 @@ export class Navigation {
         return qN_next;
     }
 
+    // Pass the Data to the correspondig Windows
+    prepData(accelerometerDataObj, gyroscopeDataObj) {
+
+        // Data Window length check
+        let lenAcc = this.accWindow.length();
+        let lenGyro = this.gyroWindow.length();
+
+        let lenCheck = (lenAcc === lenGyro)
+
+        if (lenCheck) {
+            // PUSH NEW DATA TO HISTORY ARRAYS 
+            if (lenAcc < WINDOW) {
+                this.accWindow.push(accelerometerDataObj);
+                this.gyroWindow.push(gyroscopeDataObj);
+
+                SDUP_Z_LP.push(0);
+                URU_G_LP.push(0);
+
+            } else {
+                this.accWindow.pushAndShift(accelerometerDataObj);
+                this.gyroWindow.pushAndShift(gyroscopeDataObj);
+
+                // PASS Z ACCELERATION THROUGH A LOW-PASS FILTER
+                let zLowPass = (math.sum(this.accWindow.data.z.slice(-SDUP_N))) / SDUP_N;
+                SDUP_Z_LP.push(zLowPass);
+
+                // PASS Z-GYROSCOPE DATA THROUGH A LOW-PASS FILTER
+                let gLowPass = (math.sum(this.gyroWindow.data.z.slice(-URU_N))) / URU_N;
+                URU_G_LP.push(gLowPass);
+            }
+
+        } else {
+            throw new Error('prepDataHistory: Missmatched Data Window Lengths!');
+        }
+    }
+
     // State Prediction Function   
     predict(accelerometerDataObj) {
         this.RotationMatrix = Navigation.quaternion2matrix(this.attitude);
@@ -355,7 +389,7 @@ export class Navigation {
         let accBiasZ = math.mean(accW.data.z);
 
         //Var Z
-        let varAZ = accW.data.z.length < WINDOW ?  0 : math.variance(accW.data.z);
+        let varAZ = SDUP_Z_LP.length < WINDOW ?  0 : math.variance(SDUP_Z_LP.slice(-WINDOW));
 
         let accFlag = varAZ < ZEMU_VAR_ACC_THRESH;
         if (accFlag) {
@@ -516,47 +550,9 @@ export class Navigation {
         return false;
     }
 
-    // Pass the Data to the correspondig Windows
-    prepDataHistory(accelerometerDataObj, gyroscopeDataObj) {
-
-        // Data Window length check
-        let lenAcc = this.accWindow.length();
-        let lenGyro = this.gyroWindow.length();
-
-        let lenCheck = (lenAcc === lenGyro)
-
-        if (lenCheck) {
-            // PUSH NEW DATA TO HISTORY ARRAYS 
-            if (lenAcc < WINDOW) {
-                this.accWindow.push(accelerometerDataObj);
-                this.gyroWindow.push(gyroscopeDataObj);
-
-                SDUP_Z_LP.push(0);
-                URU_G_LP.push(0);
-
-            } else {
-                this.accWindow.pushAndShift(accelerometerDataObj);
-                this.gyroWindow.pushAndShift(gyroscopeDataObj);
-
-                // PASS Z ACCELERATION THROUGH A LOW-PASS FILTER
-                let zLowPass = (math.sum(this.accWindow.data.z.slice(-SDUP_N))) / SDUP_N;
-                SDUP_Z_LP.push(zLowPass);
-
-                // PASS Z-GYROSCOPE DATA THROUGH A LOW-PASS FILTER
-                let gLowPass = (math.sum(this.gyroWindow.data.z.slice(-URU_N))) / URU_N;
-                URU_G_LP.push(gLowPass);
-            }
-
-            DEBUG_1++;
-
-        } else {
-            throw new Error('prepDataHistory: Missmatched Data Window Lengths!');
-        }
-    }
-
     judge(accelerometerDataObj, gyroscopeDataObj) {
         // SAVE DATA HISTORY WINDOWS
-        this.prepDataHistory(accelerometerDataObj, gyroscopeDataObj);
+        this.prepData(accelerometerDataObj, gyroscopeDataObj);
 
         // Flag object to pass on update 
         let judgeFlagObj = {
