@@ -6,6 +6,7 @@ const WINDOW = 25;
 //==============================================================================================================//
 // ZEMU
 const ZEMU_VAR_ACC_THRESH = 0.1;
+const ZEMU_Z_LP = [];
 //==============================================================================================================//
 // SDUP
 const SDUP_N = 6;                               // Low Pass Filter 'Order' 
@@ -203,6 +204,9 @@ export class Navigation {
         this.gyroWindow.clear();
 
         // Clear Global Vars
+        // ZEMU
+        ZEMU_Z_LP.splice(0,ZEMU_Z_LP.length);
+
         // SDUP
         STEP_ARRAY.splice(0, STEP_ARRAY.length);
         SDUP_Z_LP.splice(0, SDUP_Z_LP.length);
@@ -333,6 +337,7 @@ export class Navigation {
                 this.gyroWindow.push(gyroscopeDataObj);
 
                 SDUP_Z_LP.push(0);
+                ZEMU_Z_LP.push(0);
                 URU_G_LP.push(0);
 
             } else {
@@ -342,6 +347,8 @@ export class Navigation {
                 // PASS Z ACCELERATION THROUGH A LOW-PASS FILTER
                 let zLowPass = (math.sum(this.accWindow.data.z.slice(-SDUP_N))) / SDUP_N;
                 SDUP_Z_LP.push(zLowPass);
+                ZEMU_Z_LP.push(zLowPass);
+                ZEMU_Z_LP.shift();
 
                 // PASS Z-GYROSCOPE DATA THROUGH A LOW-PASS FILTER
                 let gLowPass = (math.sum(this.gyroWindow.data.z.slice(-URU_N))) / URU_N;
@@ -389,7 +396,7 @@ export class Navigation {
         let accBiasZ = math.mean(accW.data.z);
 
         //Var Z
-        let varAZ = SDUP_Z_LP.length < WINDOW ?  0 : math.variance(SDUP_Z_LP.slice(-WINDOW));
+        let varAZ = ZEMU_Z_LP.length < WINDOW ?  0 : math.variance(ZEMU_Z_LP);
 
         let accFlag = varAZ < ZEMU_VAR_ACC_THRESH;
         if (accFlag) {
@@ -551,7 +558,7 @@ export class Navigation {
     }
 
     judge(accelerometerDataObj, gyroscopeDataObj) {
-        // SAVE DATA HISTORY WINDOWS
+        // Prepare Data for modules
         this.prepData(accelerometerDataObj, gyroscopeDataObj);
 
         // Flag object to pass on update 
