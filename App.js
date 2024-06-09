@@ -14,7 +14,6 @@
   Unpublished Work © 2024 Minas Kosmidis
 */
 
-
 import React, { Component, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, ViewBase, TouchableOpacity} from 'react-native';
