@@ -27,7 +27,7 @@ const URU_N = 6;                                // Low Pass Filter 'Order'
 const URU_G_LP = [];                            // Low-Pass Gyroscope Data
 const URU_TURN_BUFFER = [];                     // Data Storage While inTurn
 const URU_ANGLES = [-90, -45, 0, 45, 90];       // Constant Angles
-const URU_VAR_THRESH = 0.01;                    // Variance Threshold to surpass in order to detect turn
+const URU_VAR_THRESH = 0.1;                    // Variance Threshold to surpass in order to detect turn
 
 let URU_IN_TURN = false;
 let URU_TIMEOUT = 0;
@@ -127,7 +127,7 @@ class DataHistory {
 
 }
 
-export class Navigation {
+export class PedestrianDeadReckoning {
     // Class Constructor 
     constructor() {
 
@@ -301,7 +301,7 @@ export class Navigation {
     qNextFromGyro(gyroscopeDataObj, q_prev) {
         let omega = [gyroscopeDataObj.x, gyroscopeDataObj.y, gyroscopeDataObj.z];
 
-        let skewW = Navigation.skewSymmetric(omega);
+        let skewW = PedestrianDeadReckoning.skewSymmetric(omega);
         omega = math.transpose([omega]);
 
         let wt = math.multiply(-1, math.transpose(omega));
@@ -362,13 +362,13 @@ export class Navigation {
 
     // State Prediction Function   
     predict(accelerometerDataObj) {
-        this.RotationMatrix = Navigation.quaternion2matrix(this.attitude);
+        this.RotationMatrix = PedestrianDeadReckoning.quaternion2matrix(this.attitude);
         let acc = [accelerometerDataObj.x, accelerometerDataObj.y, accelerometerDataObj.z];
 
         // Predict dp, dv, da 
         // position Error, velocity Error, heading Error
         this.da = math.multiply(-this.dt, math.multiply(this.RotationMatrix, this.gyroBias));
-        this.dv = math.add(math.multiply(this.dt, Navigation.skewSymmetric(acc), this.da), math.multiply(this.dt, this.RotationMatrix, this.accBias));
+        this.dv = math.add(math.multiply(this.dt, PedestrianDeadReckoning.skewSymmetric(acc), this.da), math.multiply(this.dt, this.RotationMatrix, this.accBias));
         //this.dp = math.multiply(this.dt, this.dv);
     }
 
@@ -434,67 +434,13 @@ export class Navigation {
         this.gyroBias.set([1,0], math.mean(this.gyroBias.get([1,0]), gyroBiasY));
         this.gyroBias.set([2,0], math.mean(this.gyroBias.get([2,0]), gyroBiasZ));
 
-        let lastStep_rpy = Navigation.quaternion2rpy(this.lastStepAtt);
-        let curr_rpy = Navigation.quaternion2rpy(this.attitude);
+        let lastStep_rpy = PedestrianDeadReckoning.quaternion2rpy(this.lastStepAtt);
+        let curr_rpy = PedestrianDeadReckoning.quaternion2rpy(this.attitude);
 
         // TO FIX! KEEPS EVERYTHING IN A STRAIGHT LINE 
         this.da = math.matrix(math.subtract(math.transpose([lastStep_rpy]), math.transpose([curr_rpy])));
 
         //this.da = math.add(this.da, math.multiply(-this.dt, math.multiply(this.RotationMatrix, this.gyroBias)));
-    }
-
-    /*  USER ROTATION UPDATE 
-        This judgement module is responsible for detecting significant rotations assuming that the user can only rotate during standing phases.
-        . This module is enabled while ZEMU returns false 
-    */
-    URU() {
-        let varSq = URU_G_LP.map((v) => v*v).slice(-WINDOW);
-        let turnFlag = math.variance(varSq) > URU_VAR_THRESH;
-
-        // If turning, store gyroscope Data
-        if(turnFlag) {
-            URU_IN_TURN = true;
-            URU_TIMEOUT += this.dt;
-            URU_TURN_BUFFER.push(URU_G_LP[URU_G_LP.length-1]);
-        }
-
-        // If a valid turn ends then calculate the angle 
-        if(!turnFlag && URU_IN_TURN && URU_TIMEOUT >= 1.5) {
-            URU_IN_TURN = false;
-            let m = math.mean(URU_TURN_BUFFER);
-            let p = URU_TURN_BUFFER.find((value) => {
-                return (math.abs(value) == math.max(math.abs(URU_TURN_BUFFER)));
-            });
-
-            let theta = math.mean(m, p) * 180/math.pi;
-            //console.log(`theta = ${theta}`);
-
-            let d = 360;
-            let angle = 0;
-
-            for(let i=0; i<URU_ANGLES.length; i++) {
-                if (math.abs(URU_ANGLES[i] - theta) < d) {
-                    d = math.abs(URU_ANGLES[i] - theta);
-                    angle = URU_ANGLES[i];
-                }
-            }
-            URU_DELTA = angle;
-            this.lastStepAtt = Navigation.rpy2quaternion(0 , 0, Navigation.quaternion2rpy(this.lastStepAtt)[2] + angle * (math.pi/180));
-            this.lastStepRot = Navigation.quaternion2matrix(this.lastStepAtt);
-            URU_TURN_BUFFER.splice(0, URU_TURN_BUFFER.length);
-            URU_TIMEOUT = 0;
-            return true;
-        }
-
-        // If a turn is insignifically small, then ignore it and reset
-        if(!turnFlag && URU_IN_TURN && URU_TIMEOUT < 0.75) {
-            URU_TIMEOUT = 0;
-            URU_IN_TURN = false;
-            URU_TURN_BUFFER.splice(0, URU_TURN_BUFFER.length);
-        }
-        
-        URU_DELTA = 0;
-        return false;
     }
 
     /* STEP DETECTION AND UPDATE  
@@ -544,7 +490,7 @@ export class Navigation {
                     //this.dv = math.subtract(this.velocity, math.multiply(this.lastStepRot, this.lastStepVel));
             
                     let velArr = [this.velocity.get([0,0]), this.velocity.get([1,0]), this.velocity.get([2,0])];
-                    this.dv = math.subtract(math.multiply(this.lastStepRot, this.velocity), math.multiply(this.lastStepRot, Navigation.skewSymmetric(velArr), this.da));
+                    this.dv = math.subtract(math.multiply(this.lastStepRot, this.velocity), math.multiply(this.lastStepRot, PedestrianDeadReckoning.skewSymmetric(velArr), this.da));
                     return true;
                 }
             }
@@ -554,6 +500,59 @@ export class Navigation {
 
         this.dv = SDUP_TIMEOUT < 0.6 ? math.subtract(this.velocity, math.multiply(this.lastStepRot, this.lastStepVel)) : this.velocity;
 
+        return false;
+    }
+
+        /*  USER ROTATION UPDATE 
+        This judgement module is responsible for detecting significant rotations assuming that the user can only rotate during standing phases.
+        . This module is enabled while ZEMU returns false 
+    */
+    URU() {
+        let turnFlag = math.variance(URU_G_LP.slice(-WINDOW)) > URU_VAR_THRESH;
+
+        // If turning, store gyroscope Data
+        if(turnFlag) {
+            URU_IN_TURN = true;
+            URU_TIMEOUT += this.dt;
+            URU_TURN_BUFFER.push(URU_G_LP[URU_G_LP.length-1]);
+        }
+
+        // If a valid turn ends then calculate the angle 
+        if(!turnFlag && URU_IN_TURN && URU_TIMEOUT >= 0.7) {
+            URU_IN_TURN = false;
+            let m = math.mean(URU_TURN_BUFFER);
+            let p = URU_TURN_BUFFER.find((value) => {
+                return (math.abs(value) === math.max(math.abs(URU_TURN_BUFFER)));
+            });
+
+            let theta = (math.mean(m, p) * URU_TIMEOUT) * 180/math.pi;
+            //console.log(`theta = ${theta}`);
+
+            let d = 360;
+            let angle = 0;
+
+            for(let i=0; i<URU_ANGLES.length; i++) {
+                if (math.abs(URU_ANGLES[i] - theta) < d) {
+                    d = math.abs(URU_ANGLES[i] - theta);
+                    angle = URU_ANGLES[i];
+                }
+            }
+            URU_DELTA = angle;
+            this.lastStepAtt = PedestrianDeadReckoning.rpy2quaternion(0 , 0, PedestrianDeadReckoning.quaternion2rpy(this.lastStepAtt)[2] + angle * (math.pi/180));
+            this.lastStepRot = PedestrianDeadReckoning.quaternion2matrix(this.lastStepAtt);
+            URU_TURN_BUFFER.splice(0, URU_TURN_BUFFER.length);
+            URU_TIMEOUT = 0;
+            return true;
+        }
+
+        // If a turn is insignifically small, then ignore it and reset
+        if(!turnFlag && URU_IN_TURN && URU_TIMEOUT < 0.3) {
+            URU_TIMEOUT = 0;
+            URU_IN_TURN = false;
+            URU_TURN_BUFFER.splice(0, URU_TURN_BUFFER.length);
+        }
+        
+        URU_DELTA = 0;
         return false;
     }
 
@@ -594,19 +593,19 @@ export class Navigation {
         // Update State Variables 
         // Attitude
         
-        //let varQ = Navigation.rpy2quaternion(gyroscopeDataObj.x * this.dt, gyroscopeDataObj.y * this.dt, gyroscopeDataObj.z * this.dt);
+        //let varQ = PedestrianDeadReckoning.rpy2quaternion(gyroscopeDataObj.x * this.dt, gyroscopeDataObj.y * this.dt, gyroscopeDataObj.z * this.dt);
         
         // let varQ = this.quaternionFromGyro(gyroscopeDataObj);
-        // this.attitude = Navigation.quaternionMulti(varQ, this.attitude);
+        // this.attitude = PedestrianDeadReckoning.quaternionMulti(varQ, this.attitude);
         this.attitude = this.qNextFromGyro(gyroscopeDataObj, this.attitude);
         
-        let errorQ = Navigation.rpy2quaternion(this.da.get([0, 0]), this.da.get([1, 0]), this.da.get([2, 0]));
+        let errorQ = PedestrianDeadReckoning.rpy2quaternion(this.da.get([0, 0]), this.da.get([1, 0]), this.da.get([2, 0]));
 
-        //let errorQ = Navigation.rpy2quaternion(0,0,this.da.get([2,0]));
-        this.attitude = Navigation.quaternionMulti(this.attitude, errorQ);
+        //let errorQ = PedestrianDeadReckoning.rpy2quaternion(0,0,this.da.get([2,0]));
+        this.attitude = PedestrianDeadReckoning.quaternionMulti(this.attitude, errorQ);
 
         // Update Rotations
-        this.RotationMatrix = Navigation.quaternion2matrix(this.attitude);
+        this.RotationMatrix = PedestrianDeadReckoning.quaternion2matrix(this.attitude);
 
         // Velocity
         this.velocity = math.add(this.velocity, math.multiply(this.RotationMatrix, math.transpose([accData]), this.dt));
@@ -693,12 +692,12 @@ export class Navigation {
     }
     // TURN LEFT
     utilTurnLeft() {
-        this.lastStepAtt = Navigation.rpy2quaternion(0 , 0, Navigation.quaternion2rpy(this.lastStepAtt)[2] + 45 * (math.pi/180));
-        this.lastStepRot = Navigation.quaternion2matrix(this.lastStepAtt);
+        this.lastStepAtt = PedestrianDeadReckoning.rpy2quaternion(0 , 0, PedestrianDeadReckoning.quaternion2rpy(this.lastStepAtt)[2] + 45 * (math.pi/180));
+        this.lastStepRot = PedestrianDeadReckoning.quaternion2matrix(this.lastStepAtt);
     }
     // TURN RIGHT
     utilTurnRight() {
-        this.lastStepAtt = Navigation.rpy2quaternion(0 , 0, Navigation.quaternion2rpy(this.lastStepAtt)[2] - 45 * (math.pi/180));
-        this.lastStepRot = Navigation.quaternion2matrix(this.lastStepAtt);
+        this.lastStepAtt = PedestrianDeadReckoning.rpy2quaternion(0 , 0, PedestrianDeadReckoning.quaternion2rpy(this.lastStepAtt)[2] - 45 * (math.pi/180));
+        this.lastStepRot = PedestrianDeadReckoning.quaternion2matrix(this.lastStepAtt);
     }
 }

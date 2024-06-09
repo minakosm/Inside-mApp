@@ -1,5 +1,5 @@
 import * as math from "mathjs";
-import { Navigation } from "./Navigation";
+import { Navigation } from "./PedestrianDeadReckoning";
 
 const mapInfo = {
     binaryMap: math.matrix([
@@ -81,7 +81,7 @@ class Particle {
 class OccupancyMap {
     constructor(){}
 
-    nrOfParticles = 2000;
+    nrOfParticles = 500;
     mapData = mapInfo.binaryMap;
     width = mapInfo.height;
     height = mapInfo.width;
@@ -252,8 +252,8 @@ class OccupancyMap {
         // let dirY = math.sign(distance.y);
 
 
-        let pot = findPaths(A, [iStart, jStart], [iEnd, jEnd]);
-        return pot;
+        let potential = findPaths(A, [iStart, jStart], [iEnd, jEnd]);
+        return potential;
 
         // A.set([iStart, jStart], 1);
         // for(let j = jStart + dirX; j !== jEnd + dirX; j+=dirX)  {
@@ -431,11 +431,11 @@ class OccupancyMap {
 
         this.particles.sort((a, b) => b.weight - a.weight);
 
-        let halfBestParticles = math.subset(this.particles, math.index(math.range(0,this.nrOfParticles/2)));
-        let weightedSum = halfBestParticles.reduce((sum, value) => sum + value.weight, 0);
-        this.estimatedPos.x = halfBestParticles.reduce((sum, v) => sum + v.currPoint.x * v.weight, 0) / weightedSum;
-        this.estimatedPos.y = halfBestParticles.reduce((sum, v) => sum + v.currPoint.y * v.weight, 0) / weightedSum;
-        this.estimatedPos.heading = halfBestParticles.reduce((sum, v) => sum + v.heading * v.weight, 0) / weightedSum;
+        let tenthBestParticles = math.subset(this.particles, math.index(math.range(0,this.nrOfParticles/10)));
+        let weightedSum = tenthBestParticles.reduce((sum, value) => sum + value.weight, 0);
+        this.estimatedPos.x = tenthBestParticles.reduce((sum, v) => sum + v.currPoint.x * v.weight, 0) / weightedSum;
+        this.estimatedPos.y = tenthBestParticles.reduce((sum, v) => sum + v.currPoint.y * v.weight, 0) / weightedSum;
+        this.estimatedPos.heading = tenthBestParticles.reduce((sum, v) => sum + v.heading * v.weight, 0) / weightedSum;
     }
 
     // RESAMPLE
@@ -529,7 +529,5 @@ function findPaths(mat, start, end) {
 
     return math.sum(pathMatrix) / (rows * cols);
 }
-
-
 
 export { Particle, OccupancyMap }
