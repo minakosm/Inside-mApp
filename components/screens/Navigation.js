@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, Component } from "react";
-import { StyleSheet, Text, View, Dimensions, TouchableHighlight } from "react-native";
+import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert } from "react-native";
 
 // Import Canvas
 // import Canvas from "react-native-canvas";
@@ -97,6 +97,15 @@ export default Navigation = (props) => {
     function setInitPos(pxX, pxY) {
         let userX = pxX * occMap.width/SCREEN_WIDTH;
         let userY = pxY * (2 * occMap.height)/SCREEN_HEIGHT;
+        if(occMap.isInsideWall(
+            {currPoint: {
+                x: userX,
+                y: userY
+            }}
+        )) {
+            alert(`Can't start from Occupied Space! Try again`);
+            return;
+        }
         console.log(`USER POS ${userX}, ${userY}`)
         occMap.setEstimatedPos(userX, userY);
         occMap.initParticles();
@@ -104,6 +113,10 @@ export default Navigation = (props) => {
     }
 
     function setInitHeading(y, x) {
+        if(!math.isNumber(occMap.estimatedPos.x) || !math.isNumber(occMap.estimatedPos.y)) {
+            alert("No user position found!")
+            return;
+        }
         let theta = math.atan2(y, x) * 180/math.pi;
         occMap.setEstimatedHeading(theta);
         occMap.initParticles();
@@ -147,6 +160,7 @@ export default Navigation = (props) => {
         setDeviceSub(null);
         setGyroSub(null);
         
+        setStart(false);
         console.log('STOP SUBSCRIPTIONS');
     }
 
@@ -163,7 +177,6 @@ export default Navigation = (props) => {
         PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 
         setClear(true);
-        setStart(false);
         setNewParticleUpdate({updt: false})
         pdr.reset();
         occMap.clear();
@@ -200,8 +213,8 @@ export default Navigation = (props) => {
         // }
 
         if(pdrResults.newStep || pdrResults.newTurn || !occMap.isPFInitialized()) {
-            occMap.runParticleFilter(navResults.stepLength, navResults.deltaTh);
-            setNewParticleUpdate({step: navResults.stepLength, turn: navResults.deltaTh})
+            occMap.runParticleFilter(pdrResults.stepLength, pdrResults.deltaTh);
+            setNewParticleUpdate({step: pdrResults.stepLength, turn: pdrResults.deltaTh})
         }
     }
 
@@ -307,12 +320,6 @@ export default Navigation = (props) => {
 
     return (
         <View style={styles.container}>
-            <Text>PDR APP</Text>
-            <Text>Running: {JSON.stringify(start)}</Text>
-            <View style={{ marginVertical: 15}}>
-                <Text>Sensor measurements: {accelerometerData.x.length}</Text>
-            </View>
-
             <View style={styles.dataContainerMiddle}>
             <TouchableHighlight onPress={start ? _unsubscribe : _subscribe} style={styles.button}>
                 <Text style={styles.buttonText}>{!start ? 'START' : 'STOP'}</Text>
@@ -360,14 +367,14 @@ export default Navigation = (props) => {
                                     origin={{x: occMap.estimatedPos.x * SCREEN_WIDTH/occMap.width, y: occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.height)}}
                                     transform = {[{ rotateZ: -occMap.estimatedPos.heading * math.pi/180 }]}>
                                         <Circle
-                                        key={`circle-${i}`}
+                                        key={`Circle`}
                                         cx={occMap.estimatedPos.x * SCREEN_WIDTH/occMap.width}
                                         cy={occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.height)}
                                         r={6}
                                         color='blue'
                                     />
                                     <ImageSVG 
-                                        key={`svg-${i}`}
+                                        key={'SVG'}
                                         svg={svg}
                                         x={occMap.estimatedPos.x * SCREEN_WIDTH/occMap.width -10}
                                         y={occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.height)-20}
@@ -385,19 +392,21 @@ export default Navigation = (props) => {
             </GestureHandlerRootView>
             </View>
 
-            <View style={styles.button}>
+            <View style={{marginVertical:10}}>
+            <View style={styles.dataContainerMiddle}>
                 <TouchableHighlight onPress={addStep} style={styles.button}>
-                    <Text>+ Step</Text>
+                    <Text style={styles.buttonText}>+ Step</Text>
                 </TouchableHighlight>
                 <TouchableHighlight onPress={removeStep} style={styles.button}>
-                    <Text>- Step</Text>
+                    <Text style = {styles.buttonText}>- Step</Text>
                 </TouchableHighlight>
                 <TouchableHighlight onPress={turnLeft} style={styles.button}>
-                    <Text>+ 45°</Text>
+                    <Text style={styles.buttonText}>+ 45°</Text>
                 </TouchableHighlight>
                 <TouchableHighlight onPress={turnRight} style={styles.button}>
-                    <Text>- 45°</Text>
+                    <Text style={styles.buttonText}>- 45°</Text>
                 </TouchableHighlight>
+            </View>
             </View>
         </View>
     );
