@@ -156,7 +156,7 @@ class OccupancyMap {
                 do {
                     p.currPoint.x = p.prevPoint.x = math.random(0, this.width-1);
                     p.currPoint.y = p.prevPoint.y = math.random(0, this.height-1);
-                    p.heading = math.random(-120, 120);
+                    p.heading = math.random(-180, 180);
                 } while (this.isInsideWall(p));
     
                 p.weight = 1/this.nrOfParticles;

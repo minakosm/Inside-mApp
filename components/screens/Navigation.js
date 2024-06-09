@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, Component } from "react";
-import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert } from "react-native";
+import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollView } from "react-native";
 
 // Import Canvas
 // import Canvas from "react-native-canvas";
-import { Canvas, Group, Circle, Skia, Path, Image, useImage, ImageSVG } from "@shopify/react-native-skia";
+import { Canvas, Group, Circle, Skia, Rect, Image, useImage, ImageSVG } from "@shopify/react-native-skia";
 // Import Sensor Related Libraries
 import { Gyroscope, DeviceMotion } from "expo-sensors";
 import { SensorData } from "../utils/SensorData";
@@ -57,13 +57,22 @@ export default Navigation = (props) => {
     const [deviceSub, setDeviceSub] = useState(null);
     const [gyroSub, setGyroSub] = useState(null)
 
-    const [newParticleUpdate, setNewParticleUpdate]= useState({})
+    const [newParticleUpdate, setNewParticleUpdate]= useState({
+        step: null, 
+        turn: null
+    })
     const dataBuffer = useRef([null, null, null]);
     
     const userTapPos = useSharedValue({
         x: 0,
         y: 0
     });
+
+    const [changeMap, setChangeMap] = useState(false);
+
+    const onStartPress = () => {
+        setChangeMap(true);
+    }
 
     const tapGesture = Gesture.Tap()
             .maxDuration(250)
@@ -109,7 +118,10 @@ export default Navigation = (props) => {
         console.log(`USER POS ${userX}, ${userY}`)
         occMap.setEstimatedPos(userX, userY);
         occMap.initParticles();
-        setNewParticleUpdate({updt: true});
+        setNewParticleUpdate({
+            step: 0,
+            turn: 0
+        });
     }
 
     function setInitHeading(y, x) {
@@ -120,7 +132,10 @@ export default Navigation = (props) => {
         let theta = math.atan2(y, x) * 180/math.pi;
         occMap.setEstimatedHeading(theta);
         occMap.initParticles();
-        setNewParticleUpdate({updt: true});
+        setNewParticleUpdate({
+            step: 0,
+            turn: 0
+        });
     }
 
     function DeviceMotionCallback(data){
@@ -177,7 +192,10 @@ export default Navigation = (props) => {
         PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 
         setClear(true);
-        setNewParticleUpdate({updt: false})
+        setNewParticleUpdate({
+            step: null,
+            turn: null
+        })
         pdr.reset();
         occMap.clear();
     }
@@ -299,27 +317,59 @@ export default Navigation = (props) => {
     }
 
     const addStep = () => {
-        pdr.utilAddStep();
+        if(newParticleUpdate.step === null) {
+            alert(`Unable to Add Step!`)
+            return;
+        }
+        occMap.runParticleFilter(0.6, 0);
+        setNewParticleUpdate({step: 0.6, turn: newParticleUpdate.turn})
     }
 
     const removeStep = () => {
-        pdr.utilRemoveStep();
+        if(newParticleUpdate.step === null || newParticleUpdate.step === 0) {
+            alert(`Unable to Remove Step!`)
+            return;
+        }
+        occMap.runParticleFilter(-math.abs(newParticleUpdate.step), 0);
+        setNewParticleUpdate({step: -newParticleUpdate.step, turn: newParticleUpdate.turn})
     }
 
     const turnRight = () => {
-        pdr.utilTurnRight();
+        if(newParticleUpdate.turn === null || !math.isNumber(occMap.estimatedPos.x) || !math.isNumber(occMap.estimatedPos.y)) {
+            alert(`Unable to Change Heading!`);
+            return;
+        }
+        occMap.runParticleFilter(0, -45);
+        setNewParticleUpdate({step: newParticleUpdate.step, turn: -45});
     }
 
     const turnLeft = () => {
-        pdr.utilTurnLeft();
+        if(newParticleUpdate.turn === null || !math.isNumber(occMap.estimatedPos.x) || !math.isNumber(occMap.estimatedPos.y)) {
+            alert(`Unable to Change Heading!`);
+            return;
+        }
+        occMap.runParticleFilter(0, 45);
+        setNewParticleUpdate({step: newParticleUpdate.step, turn: 45});
     }
 
+    function welcomeScreen() {
+        return(
+            <View style={{marginVertical: '85%'}}>
+                <View style={styles.dataContainerMiddle}>
+                <TouchableHighlight style={styles.button}>
+                    <Text style={styles.buttonText} onPress={onStartPress}> Let's Get Started !</Text>
+                </TouchableHighlight>
+                </View>
+            </View>
+        )
+    }
     useEffect(() => {
 
     }, []);
 
-    return (
+    return !changeMap? welcomeScreen() : (
         <View style={styles.container}>
+            <ScrollView>
             <View style={styles.dataContainerMiddle}>
             <TouchableHighlight onPress={start ? _unsubscribe : _subscribe} style={styles.button}>
                 <Text style={styles.buttonText}>{!start ? 'START' : 'STOP'}</Text>
@@ -335,17 +385,17 @@ export default Navigation = (props) => {
             </TouchableHighlight>
             </View>
 
-            <View style={{marginVertical:10}}>
+            <View style={{marginVertical:20}}>
             <GestureHandlerRootView style={{flex: 1}}>
                 <GestureDetector gesture={simulGesture}>
-                    <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT/2, marginVertical: 10}} mode='default'>
+                    <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT/2}} mode='default'>
                         <Image 
                             image={imageMap} 
                             x={0}
                             y={0}
                             width={SCREEN_WIDTH} 
                             height={SCREEN_HEIGHT/2}
-                            fit="scaleDown"
+                            fit='scaleDown'
                         />
                         {new Array(occMap.particles.length).fill(0).map((v,i) => {
                             if(occMap.particles[i].weight) {
@@ -382,8 +432,6 @@ export default Navigation = (props) => {
                                         height={20}
                                     />
                                     </Group>
-                                    
-                                    
                                 )
                             }
                         })}         
@@ -392,22 +440,23 @@ export default Navigation = (props) => {
             </GestureHandlerRootView>
             </View>
 
-            <View style={{marginVertical:10}}>
-            <View style={styles.dataContainerMiddle}>
-                <TouchableHighlight onPress={addStep} style={styles.button}>
-                    <Text style={styles.buttonText}>+ Step</Text>
-                </TouchableHighlight>
-                <TouchableHighlight onPress={removeStep} style={styles.button}>
-                    <Text style = {styles.buttonText}>- Step</Text>
-                </TouchableHighlight>
-                <TouchableHighlight onPress={turnLeft} style={styles.button}>
-                    <Text style={styles.buttonText}>+ 45°</Text>
-                </TouchableHighlight>
-                <TouchableHighlight onPress={turnRight} style={styles.button}>
-                    <Text style={styles.buttonText}>- 45°</Text>
-                </TouchableHighlight>
+            <View style={{marginTop:10}}>
+                <View style={styles.dataContainerMiddle}>
+                    <TouchableHighlight onPress={addStep} style={styles.button}>
+                        <Text style={styles.buttonText}>+ Step</Text>
+                    </TouchableHighlight>
+                    <TouchableHighlight onPress={removeStep} style={styles.button}>
+                        <Text style = {styles.buttonText}>- Step</Text>
+                    </TouchableHighlight>
+                    <TouchableHighlight onPress={turnLeft} style={styles.button}>
+                        <Text style={styles.buttonText}>+ 45°</Text>
+                    </TouchableHighlight>
+                    <TouchableHighlight onPress={turnRight} style={styles.button}>
+                        <Text style={styles.buttonText}>- 45°</Text>
+                    </TouchableHighlight>
+                </View>
             </View>
-            </View>
+            </ScrollView>
         </View>
     );
 
