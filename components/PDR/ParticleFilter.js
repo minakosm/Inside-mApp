@@ -283,58 +283,54 @@ class OccupancyMap {
         // return {wallHit: A.get([iEnd, jEnd]) === 0, potential: A.get([iEnd, jEnd]) / maxPotentialPaths};
     }
 
-    distanceFromWalls = (particle) => {
+    distanceFromWalls = async (particle) => {
         let xCell = math.floor(particle.currPoint.x * this.resolution);
         let yCell = math.floor(particle.currPoint.y * this.resolution);
-
+        let maxDistance = math.floor(0.4 * this.resolution);
         let [r, c] = this.mapData.size();
+
         // LOOK UP 
-        let wallUp = 1;
-        for(let i=yCell-1; i>=0; i--){
-            if(this.mapData.get([xCell, i]) === 1){
-                break;
-            } else {
-                wallUp +=1;
+        let pUP = new Promise((resolve, reject)=>{
+            for(let i=1; i>=maxDistance; i++){
+                if(this.mapData.get([xCell, yCell-i]) === 1){
+                    resolve('HIT');
+                }
             }
-        }
+            reject('No close to Wall')
+        })
+       
 
         // LOOK DOWN 
-        let wallDown = 1;
-        for(let i=yCell+1; i<r; i++) {
-            if(this.mapData.get([xCell, i]) === 1) {
-                break;
-            } else {
-                wallDown += 1;
+        let pDown = new Promise((resolve,reject)=>{
+            for(let i=1; i<maxDistance; i++) {
+                if(this.mapData.get([xCell, yCell+1]) === 1) {
+                    resolve('HIT');
+                }
             }
-        }
-
+            reject('No close to Wall');
+        })
         // LOOK RIGHT
-        let wallRight = 1;
-        for(let i=xCell+1; i<c; i++) {
-            if(this.mapData.get([i ,yCell]) === 1) {
-                break;
-            } else {
-                wallRight += 1;
+        let pRight = new Promise((resolve, reject) =>{
+            for(let i=1; i<maxDistance; i++) {
+                if(this.mapData.get([xCell+i ,yCell]) === 1) {
+                    resolve('HIT');
+                } 
             }
-        }
+            reject('No close to Wall');
+        })
         
         // LOOK LEFT
-        let wallLeft = 1;
-        for(let i=xCell-1; i>=0; i--) {
-            if(this.mapData.get([i ,yCell]) === 1) {
-                break;
-            } else {
-                wallLeft += 1;
+        let pLeft = new Promise((resolve, reject) => {
+            for(let i=1; i>maxDistance; i++) {
+                if(this.mapData.get([xCell-i ,yCell]) === 1) {
+                    resolve('Hit');
+                }
             }
-        }
+            reject('No close to Wall');
+        })
+
         
-        wallUp = wallUp - 1 + (particle.currPoint.y - yCell);
-        wallDown = wallDown - (particle.currPoint.y - yCell);
-
-        wallLeft = wallLeft - 1 + (particle.currPoint.x - xCell);
-        wallRight = wallRight - (particle.currPoint.x - xCell);
-
-        return [wallUp, wallRight, wallDown, wallLeft];
+        return Promise.any([pUP, pDown, pLeft, pRight]);
     }
 
     runParticleFilter = (stepLength, yawChange) => {
@@ -409,22 +405,32 @@ class OccupancyMap {
     // UPDATE
     updateWeights = () => {
         for (let p of this.particles) {
-            if(p.weight !== 0){
-                let potential = this.wallPassCheck(p);
-                if(potential === 0 ) {
+        //     if(p.weight !== 0){
+        //         let potential = this.wallPassCheck(p);
+        //         if(potential === 0 ) {
+        //             p.weight = 0;
+        //             p.currPoint.x = p.currPoint.y = 0;
+        //             p.prevPoint.x = p.prevPoint.y = 0;
+        //         } else {
+
+        //         p.weight = p.weight * potential;
+        //         let isCloseToWall = this.distanceFromWalls(p).then((res)=> true, (rej)=>false);
+        //         if(isCloseToWall) {p.weight = p.weight * 0.8}
+                
+        //     }
+        // }
+
+            if(p.weight === 0) {
+                continue;
+            } else {
+                if(this.isInsideWall(p)) {
                     p.weight = 0;
                     p.currPoint.x = p.currPoint.y = 0;
                     p.prevPoint.x = p.prevPoint.y = 0;
-                } else {
-
-                p.weight = p.weight * potential;
-                let [up, right, down, left] = this.distanceFromWalls(p);
-                minDist =  math.min(up, right, down, left);
-                if(minDist < 0.4) {p.weight = p.weight * 0.8}
-                
+                }
+                let isCloseToWall = this.distanceFromWalls(p).then((res)=> true, (rej)=>false);
+                if(isCloseToWall) {p.weight = p.weight * 0.8;}
             }
-        }
-
         }
 
         let wSum = this.particles.map(v => v.weight).reduce((p,c) => p + c,0);
