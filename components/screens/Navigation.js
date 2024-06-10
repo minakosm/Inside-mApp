@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, Component } from "react";
-import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollView } from "react-native";
+import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollView, TextInput, TextInputComponent } from "react-native";
 
 // Import Canvas
 // import Canvas from "react-native-canvas";
@@ -68,10 +68,10 @@ export default Navigation = (props) => {
         y: 0
     });
 
-    const [changeMap, setChangeMap] = useState(false);
+    const [homeScreen, setHomeScreen] = useState(true);
 
     const onStartPress = () => {
-        setChangeMap(true);
+        setHomeScreen(false);
     }
 
     const tapGesture = Gesture.Tap()
@@ -367,7 +367,7 @@ export default Navigation = (props) => {
 
     }, []);
 
-    return !changeMap? welcomeScreen() : (
+    return homeScreen? welcomeScreen() : (
         <View style={styles.container}>
             <ScrollView>
             <View style={styles.dataContainerMiddle}>
@@ -456,6 +456,24 @@ export default Navigation = (props) => {
                     </TouchableHighlight>
                 </View>
             </View>
+
+            <View style={{marginTop:10}}>
+                <View style={styles.dataContainerMiddle}>
+                    <View style={{flexDirection:'column', marginHorizontal:10}}>
+                        <Text style={styles.inputText}> n-Particles </Text>
+                        <TextInput 
+                            value={JSON.stringify(occMap.getNrOfParticles())}
+                            style={styles.input}
+                            onChangeText={(e) =>{ 
+                                isNaN(parseInt(e,10))? occMap.setNrOfParticles(10) : occMap.setNrOfParticles(parseInt(e,10));
+                                _clear();
+                            }}
+                            inputMode="numeric"
+                        />
+                    </View>
+
+                </View>
+            </View>
             </ScrollView>
         </View>
     );
@@ -534,4 +552,16 @@ const styles = StyleSheet.create({
         backgroundColor: "transparent",
         padding: 3,
     },
+    input: {
+        borderWidth: 1,
+        paddingVertical: 3,
+        width: "auto",
+        textAlign: 'center',
+      },
+      inputText: {
+        marginRight: 6,
+        fontSize: 16,
+        fontWeight:'heavy',
+      },
+    
 });
