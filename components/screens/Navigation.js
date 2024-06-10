@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, Component } from "react";
-import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollView, TextInput, TextInputComponent } from "react-native";
+import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollView, TextInput, TextInputComponent, } from "react-native";
 
 // Import Canvas
 // import Canvas from "react-native-canvas";
-import { Canvas, Group, Circle, Skia, Rect, Image, useImage, ImageSVG } from "@shopify/react-native-skia";
+import { Canvas, Group, Circle, Skia, Rect, useImage, Image, ImageSVG, useImageAsTexture, loadData } from "@shopify/react-native-skia";
 // Import Sensor Related Libraries
 import { Gyroscope, DeviceMotion } from "expo-sensors";
+import * as ExpImage from 'expo-image'
 import { SensorData } from "../utils/SensorData";
 
 // Math Library
@@ -16,6 +17,7 @@ import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 const { StorageAccessFramework } = FileSystem;
 
+
 // Custom Modules 
 import { PedestrianDeadReckoning } from "../PDR/PedestrianDeadReckoning";
 import Animated, { interpolateColor, runOnJS, useAnimatedProps, useAnimatedReaction, useAnimatedRef, useAnimatedSensor, useSharedValue } from "react-native-reanimated";
@@ -23,7 +25,6 @@ import { OccupancyMap, Particle } from "../PDR/ParticleFilter";
 
 // Gestures
 import { GestureHandlerRootView, GestureDetector, Gesture } from "react-native-gesture-handler";
-
 
 const _freqUpdate = 20; // 20 ms (50 hz) sample period (frequency) from motion sensors
 
@@ -38,10 +39,8 @@ TIMESTAMP = Date.now();
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const PATH = Skia.Path.Make();
 PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
-
 // MAP
-
-const occMap = new OccupancyMap();
+//const occMap = new OccupancyMap();
 //occMap.initParticles();
 const svg = Skia.SVG.MakeFromString(
     `<svg data-name="1-Arrow Up" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
@@ -61,17 +60,37 @@ export default Navigation = (props) => {
         step: null, 
         turn: null
     })
+    const [occMap, setOccMap] = useState(new OccupancyMap());
+    const [mapImageName, setMapImageName] = useState(" ");    
+    const [mapPicked, setMapPicked] = useState(false);
+    
     const dataBuffer = useRef([null, null, null]);
     
     const userTapPos = useSharedValue({
         x: 0,
         y: 0
     });
-
-    const [homeScreen, setHomeScreen] = useState(true);
-
-    const onStartPress = () => {
-        setHomeScreen(false);
+    const mapPicker = async () => {
+        // Clear Application
+        _clear();
+        // Open Document Picker and choose File
+        let result = await DocumentPicker.getDocumentAsync({});
+        // If file picked succesfully
+        if(!result.canceled) {
+            // Get map Data
+            const {binaryMap, size, resolution, imageName, extension} = await FileSystem.readAsStringAsync(result.assets[0].uri).then((res) => JSON.parse(res));
+            setOccMap(new OccupancyMap(binaryMap, resolution));
+            console.log(`IN PICKER: imageName = ${imageName}`)
+            setMapImageName(imageName);
+            console.log(`MAP PICKED!!`);
+            let mat = math.matrix(binaryMap);
+            console.log(mat);
+            console.log(size);
+            console.log(resolution)
+            setMapPicked(true)
+        } else {
+            alert("Pick a Map File");
+        }
     }
 
     const tapGesture = Gesture.Tap()
@@ -98,10 +117,6 @@ export default Navigation = (props) => {
     function angleLog(y, x) {
         console.log(`PAN HEADING ${math.atan2(y, x) * 180/math.pi}`)
     }; 
-
-    const imageMap = useImage(require("../../assets/maps/TestMap.png"), (e) => {
-        console.log(`IMAGE ERROR!!!!`)
-    });
 
     function setInitPos(pxX, pxY) {
         let userX = pxX * occMap.xWorldLimits/SCREEN_WIDTH;
@@ -357,17 +372,43 @@ export default Navigation = (props) => {
             <View style={{marginVertical: '85%'}}>
                 <View style={styles.dataContainerMiddle}>
                 <TouchableHighlight style={styles.button}>
-                    <Text style={styles.buttonText} onPress={onStartPress}> Let's Get Started !</Text>
+                    <Text style={styles.buttonText} onPress={mapPicker}> Let's Get Started !</Text>
                 </TouchableHighlight>
                 </View>
             </View>
         )
     }
+
+    const ImageItem = ({name}) => {
+        let SkiaImage = null;
+        console.log(`MAP_NAME = ${name}`)
+        switch (name) {
+            case "testMap":
+                SkiaImage = useImage(require("../../assets/maps/testMap.png"));
+                break;
+            case "labMap":
+                SkiaImage = useImage(require("../../assets/maps/labMap.png"));
+                break;
+            default:
+                SkiaImage = useImage(require("../../assets/icon.png"));
+            break;
+        }
+        return (
+            <Image 
+            image={SkiaImage}
+            x={0}
+            y={0}
+            width={SCREEN_WIDTH} 
+            height={SCREEN_HEIGHT/2}
+            fit='scaleDown'
+            />
+        );
+    }
     useEffect(() => {
 
     }, []);
 
-    return homeScreen? welcomeScreen() : (
+    return !mapPicked? welcomeScreen() : (
         <View style={styles.container}>
             <ScrollView>
             <View style={styles.dataContainerMiddle}>
@@ -389,14 +430,7 @@ export default Navigation = (props) => {
             <GestureHandlerRootView style={{flex: 1}}>
                 <GestureDetector gesture={simulGesture}>
                     <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT/2}} mode='default'>
-                        <Image 
-                            image={imageMap} 
-                            x={0}
-                            y={0}
-                            width={SCREEN_WIDTH} 
-                            height={SCREEN_HEIGHT/2}
-                            fit='scaleDown'
-                        />
+                        <ImageItem name={mapImageName}/>
                         {new Array(occMap.particles.length).fill(0).map((v,i) => {
                             if(occMap.particles[i].weight) {
                                 return(
@@ -474,6 +508,12 @@ export default Navigation = (props) => {
 
                 </View>
             </View>
+            <View style={styles.dataContainerMiddle}>
+                <View style={{marginTop:10, flex:1, alignContent:'center'}}>
+                    <Text style={{color:'#007'}} onPress={()=>{setMapPicked(false)}}>HomeScreen</Text>
+                </View>
+            </View>
+            
             </ScrollView>
         </View>
     );

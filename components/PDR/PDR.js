@@ -89,7 +89,7 @@ export default PDRApp = (props) => {
     };
     
 
-    const imageMap = useImage(require("../../assets/maps/TestMap.png"), (e) => {
+    const imageMap = useImage(require("../../assets/maps/testMap.png"), (e) => {
         console.log(`IMAGE ERROR!!!!`)
     });
 

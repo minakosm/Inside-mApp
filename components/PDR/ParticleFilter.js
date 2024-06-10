@@ -79,25 +79,24 @@ class Particle {
  }
  
 class OccupancyMap {
-    constructor(){}
+    constructor(binaryMap =[[0]], resolution=1){
+        this.mapData = math.matrix(binaryMap);
+        this.resolution = resolution;
+        this.nrOfParticles = 10;
+        this.yWorldLimits = binaryMap.length
+        this.xWorldLimits = binaryMap[0].length;
 
-    nrOfParticles = 500;
-    mapData = mapInfo.binaryMap;
-    resolution = mapInfo.resolution;    // GridTiles per meter
-    xWorldLimits = mapInfo.binaryMap.size()[1] / this.resolution;
-    yWorldLimits = mapInfo.binaryMap.size()[0] / this.resolution;
-    
-    initializedPF = false;
-    initializedUserPosition = false;
-    initializedUserHeading = false;
-    particles = [];
+        this.initializedPF = false;
+        this.initializedUserPosition = false;
+        this.initializedUserHeading = false;
+        this.particles = [];
 
-    estimatedPos = {
-        x: null,
-        y: null,
-        heading: 0
+        this.estimatedPos = {
+            x: null,
+            y: null,
+            heading: 0
+        };
     }
-
 
     // GETTERS - SETTERS
     getNrOfParticles = () => {return this.nrOfParticles;}
@@ -126,7 +125,6 @@ class OccupancyMap {
         this.initializedPF = false;
         this.particles = [];
 
-
         this.estimatedPos = {
             x: null,
             y: null,
@@ -135,17 +133,17 @@ class OccupancyMap {
 
     }
 
-    initMap = (mapInfo) => {
-        // let mapInfo = JSON.parse(mapPath);
-        this.mapData = math.matrix(mapInfo.binaryMap);
-        this.yWorldLimits = Number(mapInfo.height);
-        this.xWorldLimits = Number(mapInfo.width);
-        this.resolution = mapInfo.resolution;
+    // initMap = (binaryMap, resolution) => {
+    //     // let mapInfo = JSON.parse(mapPath);
+    //     this.mapData = math.matrix(binaryMap);
+    //     this.resolution = resolution;
+    //     this.yWorldLimits = Number(mapInfo.height);
+    //     this.xWorldLimits = Number(mapInfo.width);
+        
+    //     this.particles = new Array(this.nrOfParticles);
 
-        this.particles = new Array(this.nrOfParticles);
-
-        this.initParticles();
-    }
+    //     this.initParticles();
+    // }
 
     // PARTICLE FILTER INITIALIZATION
     initParticles = () => {
@@ -432,7 +430,7 @@ class OccupancyMap {
 
         this.particles.sort((a, b) => b.weight - a.weight);
 
-        let tenthBestParticles = math.subset(this.particles, math.index(math.range(0,this.nrOfParticles/10)));
+        let tenthBestParticles = math.subset(this.particles, math.index(math.range(0,math.ceil(this.nrOfParticles/10))));
         let weightedSum = tenthBestParticles.reduce((sum, value) => sum + value.weight, 0);
         this.estimatedPos.x = tenthBestParticles.reduce((sum, v) => sum + v.currPoint.x * v.weight, 0) / weightedSum;
         this.estimatedPos.y = tenthBestParticles.reduce((sum, v) => sum + v.currPoint.y * v.weight, 0) / weightedSum;
