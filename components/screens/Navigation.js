@@ -5,7 +5,7 @@ import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollVi
 // import Canvas from "react-native-canvas";
 import { Canvas, Group, Circle, Skia, Rect, useImage, Image, ImageSVG, useImageAsTexture, loadData } from "@shopify/react-native-skia";
 // Import Sensor Related Libraries
-import { Gyroscope, DeviceMotion } from "expo-sensors";
+import { Gyroscope, DeviceMotion, Accelerometer} from "expo-sensors";
 import * as ExpImage from 'expo-image'
 import { SensorData } from "../utils/SensorData";
 
@@ -40,7 +40,7 @@ const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const PATH = Skia.Path.Make();
 PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 // MAP
-//const occMap = new OccupancyMap();
+let occMap = new OccupancyMap();
 //occMap.initParticles();
 const svg = Skia.SVG.MakeFromString(
     `<svg data-name="1-Arrow Up" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
@@ -60,7 +60,7 @@ export default Navigation = (props) => {
         step: null, 
         turn: null
     })
-    const [occMap, setOccMap] = useState(new OccupancyMap());
+    // const [occMap, setOccMap] = useState(new OccupancyMap());
     const [mapImageName, setMapImageName] = useState(" ");    
     const [mapPicked, setMapPicked] = useState(false);
     
@@ -70,23 +70,40 @@ export default Navigation = (props) => {
         x: 0,
         y: 0
     });
+
+    function DeviceMotionCallback(data){
+        dataBuffer.current[0] = data.accelerationIncludingGravity;              // AccelerometerData in g
+        dataBuffer.current[1] = data.acceleration;                              // Accelerometer Data in m/s^2
+        if(dataBuffer.current.every((v) => v !== null)) {
+            update();                     
+        }
+    }
+
+    function GyroscopeCallback(data){
+        dataBuffer.current[2] = data;                                           // Angle Velocity in 3-axis in rad/s
+        if(dataBuffer.current.every((v) => v !== null)) {
+            update();
+        }    
+    }
+
     const mapPicker = async () => {
-        // Clear Application
-        _clear();
+        occMap.clear()
         // Open Document Picker and choose File
         let result = await DocumentPicker.getDocumentAsync({});
         // If file picked succesfully
         if(!result.canceled) {
             // Get map Data
             const {binaryMap, size, resolution, imageName, extension} = await FileSystem.readAsStringAsync(result.assets[0].uri).then((res) => JSON.parse(res));
-            setOccMap(new OccupancyMap(binaryMap, resolution));
-            console.log(`IN PICKER: imageName = ${imageName}`)
-            setMapImageName(imageName);
-            console.log(`MAP PICKED!!`);
-            let mat = math.matrix(binaryMap);
-            console.log(mat);
+            let occupancyGrid = math.matrix(binaryMap);
+
+            occMap = new OccupancyMap(occupancyGrid, resolution);
+            console.log(`=============== MAP ===============`)
+            console.log(occMap.resolution);
+            console.log(occMap.xWorldLimits);
+            console.log(occMap.yWorldLimits);
             console.log(size);
-            console.log(resolution)
+
+            setMapImageName(imageName);
             setMapPicked(true)
         } else {
             alert("Pick a Map File");
@@ -119,8 +136,8 @@ export default Navigation = (props) => {
     }; 
 
     function setInitPos(pxX, pxY) {
-        let userX = pxX * occMap.xWorldLimits/SCREEN_WIDTH;
-        let userY = pxY * (2 * occMap.yWorldLimits)/SCREEN_HEIGHT;
+        let userX = pxX/SCREEN_WIDTH * occMap.xWorldLimits;
+        let userY = 2*pxY/SCREEN_HEIGHT * occMap.yWorldLimits;
         if(occMap.isInsideWall(
             {currPoint: {
                 x: userX,
@@ -130,7 +147,7 @@ export default Navigation = (props) => {
             alert(`Can't start from Occupied Space! Try again`);
             return;
         }
-        console.log(`USER POS ${userX}, ${userY}`)
+        
         occMap.setEstimatedPos(userX, userY);
         occMap.initParticles();
         setNewParticleUpdate({
@@ -153,23 +170,9 @@ export default Navigation = (props) => {
         });
     }
 
-    function DeviceMotionCallback(data){
-        dataBuffer.current[0] = data.accelerationIncludingGravity;              // AccelerometerData in g
-        dataBuffer.current[1] = data.acceleration;                              // Accelerometer Data in m/s^2
-        if(!dataBuffer.current.some((v) => v === null)) {
-            update();                     
-        }
-    }
-
-    function GyroscopeCallback(data){
-        dataBuffer.current[2] = data;                                           // Angle Velocity in 3-axis in rad/s
-        if(!dataBuffer.current.some((v) => v === null)) {
-            update();
-        }    
-    }
-
     const _subscribe = () => {
-        Promise.all([DeviceMotion.isAvailableAsync(), Gyroscope.isAvailableAsync()])
+        dataBuffer.current = [null, null, null];
+        Promise.all([Accelerometer.isAvailableAsync(), DeviceMotion.isAvailableAsync(), Gyroscope.isAvailableAsync()])
             .then(() => {
                 console.log(`START SUBSCRIPTIONS`);
                 TIMESTAMP = Date.now();      
@@ -200,7 +203,6 @@ export default Navigation = (props) => {
         accelerationWithoutGravity.clear();
         gyroscopeData.clear();
 
-        dataBuffer.current = [null, null, null];
         userTapPos.value = {x:null, y:null};
         PATH.reset();
         PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
@@ -220,19 +222,14 @@ export default Navigation = (props) => {
         let dt = (temp - TIMESTAMP) / 1000 // in sec
         TIMESTAMP = temp;
         pdr.setDt(dt);
-
         // Get Data from buffer
-        accWGObj = dataBuffer.current[1];
         accObj = dataBuffer.current[0];
+        accWGObj = dataBuffer.current[1];        
         gyroObj = dataBuffer.current[2];
-        
-        // Clear buffer
-        dataBuffer.current = [null, null, null];
 
         // Store Data in SensorData objects
         accelerometerData.pushData(accObj);
         accelerationWithoutGravity.pushData(accWGObj);
-
         gyroscopeData.pushData(gyroObj);
         // Navigation
         let pdrResults = pdr.runEKF(accWGObj, gyroObj);
@@ -248,6 +245,8 @@ export default Navigation = (props) => {
             occMap.runParticleFilter(pdrResults.stepLength, pdrResults.deltaTh);
             setNewParticleUpdate({step: pdrResults.stepLength, turn: pdrResults.deltaTh})
         }
+        // Clear buffer
+        dataBuffer.current = [null, null, null];
     }
 
     // Save Function to store localy a Data File from current Session
@@ -379,8 +378,7 @@ export default Navigation = (props) => {
     }
 
     const ImageItem = ({name}) => {
-        let SkiaImage = null;
-        console.log(`MAP_NAME = ${name}`)
+        let SkiaImage;
         switch (name) {
             case "testMap":
                 SkiaImage = useImage(require("../../assets/maps/testMap.png"));
@@ -405,12 +403,12 @@ export default Navigation = (props) => {
     }
     useEffect(() => {
 
-    }, []);
+    }, [mapPicked, start, clear, newParticleUpdate]);
 
     return !mapPicked? welcomeScreen() : (
         <View style={styles.container}>
             <ScrollView>
-            <View style={styles.dataContainerMiddle}>
+            <View style={[styles.dataContainerMiddle, {marginTop:'15%'}]}>
             <TouchableHighlight onPress={start ? _unsubscribe : _subscribe} style={styles.button}>
                 <Text style={styles.buttonText}>{!start ? 'START' : 'STOP'}</Text>
             </TouchableHighlight>
@@ -425,7 +423,7 @@ export default Navigation = (props) => {
             </TouchableHighlight>
             </View>
 
-            <View style={{marginVertical:20}}>
+            <View style={{marginVertical:10}}>
             <GestureHandlerRootView style={{flex: 1}}>
                 <GestureDetector gesture={simulGesture}>
                     <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT/2}} mode='default'>
@@ -435,8 +433,8 @@ export default Navigation = (props) => {
                                 return(
                                     <Circle 
                                         key={i}
-                                        cx={occMap.particles[i].currPoint.x * SCREEN_WIDTH/occMap.xWorldLimits}
-                                        cy={occMap.particles[i].currPoint.y * SCREEN_HEIGHT/(2*occMap.yWorldLimits)}
+                                        cx={(occMap.particles[i].currPoint.x/occMap.xWorldLimits) * SCREEN_WIDTH}
+                                        cy={(occMap.particles[i].currPoint.y/occMap.yWorldLimits) * (SCREEN_HEIGHT/2)}
                                         r={2}
                                         color='red'
                                     />
@@ -447,20 +445,20 @@ export default Navigation = (props) => {
                             if(occMap.estimatedPos.x !== null || occMap.estimatedPos.y !== null) {
                                 return (
                                     <Group 
-                                    origin={{x: occMap.estimatedPos.x * SCREEN_WIDTH/occMap.xWorldLimits, y: occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.yWorldLimits)}}
+                                    origin={{x: (occMap.estimatedPos.x/occMap.xWorldLimits) * SCREEN_WIDTH, y: (occMap.estimatedPos.y/occMap.yWorldLimits) * (SCREEN_HEIGHT/2)}}
                                     transform = {[{ rotateZ: -occMap.estimatedPos.heading * math.pi/180 }]}>
                                         <Circle
                                         key={`Circle`}
-                                        cx={occMap.estimatedPos.x * SCREEN_WIDTH/occMap.xWorldLimits}
-                                        cy={occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.yWorldLimits)}
+                                        cx={(occMap.estimatedPos.x/occMap.xWorldLimits) * SCREEN_WIDTH}
+                                        cy={(occMap.estimatedPos.y/occMap.yWorldLimits) * (SCREEN_HEIGHT/2)}
                                         r={6}
                                         color='blue'
                                     />
                                     <ImageSVG 
                                         key={'SVG'}
                                         svg={svg}
-                                        x={occMap.estimatedPos.x * SCREEN_WIDTH/occMap.xWorldLimits -10}
-                                        y={occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.yWorldLimits)-20}
+                                        x={(occMap.estimatedPos.x/occMap.xWorldLimits) * (SCREEN_WIDTH) - 10}
+                                        y={(occMap.estimatedPos.y/occMap.yWorldLimits) * (SCREEN_HEIGHT/2) - 20}
                                         width={20}
                                         height={20}
                                     />
@@ -473,7 +471,7 @@ export default Navigation = (props) => {
             </GestureHandlerRootView>
             </View>
 
-            <View style={{marginTop:10}}>
+            <View style={{marginTop:5}}>
                 <View style={styles.dataContainerMiddle}>
                     <TouchableHighlight onPress={addStep} style={styles.button}>
                         <Text style={styles.buttonText}>+ Step</Text>

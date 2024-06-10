@@ -79,12 +79,12 @@ class Particle {
  }
  
 class OccupancyMap {
-    constructor(binaryMap =[[0]], resolution=1){
+    constructor(binaryMap = math.matrix([[0]]), resolution=1){
         this.mapData = math.matrix(binaryMap);
         this.resolution = resolution;
         this.nrOfParticles = 100;
-        this.yWorldLimits = binaryMap.length
-        this.xWorldLimits = binaryMap[0].length;
+        this.yWorldLimits = binaryMap.size()[0] / resolution;
+        this.xWorldLimits = binaryMap.size()[1] / resolution
 
         this.initializedPF = false;
         this.initializedUserPosition = false;
@@ -156,8 +156,8 @@ class OccupancyMap {
             for( let i = 0 ; i<this.nrOfParticles; i++) {
                 let p = new Particle();
                 do {
-                    p.currPoint.x = p.prevPoint.x = math.random(0, this.xWorldLimits-1);
-                    p.currPoint.y = p.prevPoint.y = math.random(0, this.yWorldLimits-1);
+                    p.currPoint.x = p.prevPoint.x = math.random(0, this.xWorldLimits);
+                    p.currPoint.y = p.prevPoint.y = math.random(0, this.yWorldLimits);
                     p.heading = math.random(-180, 180);
                 } while (this.isInsideWall(p));
     
@@ -190,8 +190,8 @@ class OccupancyMap {
     }    
 
     isOutOfBounds = (x, y) => {
-        let outOfBoundsX = x < 0 || x > this.xWorldLimits-1;
-        let outOfBoundsY = y < 0 || y > this.yWorldLimits-1;
+        let outOfBoundsX = x < 0 || x > this.mapData.size()[1] - 1;
+        let outOfBoundsY = y < 0 || y > this.mapData.size()[0] - 1;
 
         return (outOfBoundsX || outOfBoundsY);
     }
@@ -200,10 +200,8 @@ class OccupancyMap {
         // Given that resolution = cells/meter
         let xCell = math.floor(particle.currPoint.x * this.resolution);
         let yCell = math.floor(particle.currPoint.y * this.resolution);
-
         let OOB = this.isOutOfBounds(xCell, yCell);
-
-        let res = OOB ? true : mapInfo.binaryMap.get([yCell, xCell]);
+        let res = OOB ? true : this.mapData.get([yCell, xCell]);
         return res;
     }
 
@@ -289,6 +287,7 @@ class OccupancyMap {
         let xCell = math.floor(particle.currPoint.x * this.resolution);
         let yCell = math.floor(particle.currPoint.y * this.resolution);
 
+        let [r, c] = this.mapData.size();
         // LOOK UP 
         let wallUp = 1;
         for(let i=yCell-1; i>=0; i--){
@@ -301,7 +300,7 @@ class OccupancyMap {
 
         // LOOK DOWN 
         let wallDown = 1;
-        for(let i=yCell+1; i<=this.yWorldLimits; i++) {
+        for(let i=yCell+1; i<r; i++) {
             if(this.mapData.get([xCell, i]) === 1) {
                 break;
             } else {
@@ -311,7 +310,7 @@ class OccupancyMap {
 
         // LOOK RIGHT
         let wallRight = 1;
-        for(let i=xCell+1; i<=this.xWorldLimits; i++) {
+        for(let i=xCell+1; i<c; i++) {
             if(this.mapData.get([i ,yCell]) === 1) {
                 break;
             } else {

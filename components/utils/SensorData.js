@@ -21,7 +21,6 @@ class SensorData {
     }
 
     pushData(sensorDataObj) {
-
         if(Array.isArray(sensorDataObj.x)){
             sensorDataObj.x.forEach(element => this.x.push(element));
             sensorDataObj.y.forEach(element => this.y.push(element));
