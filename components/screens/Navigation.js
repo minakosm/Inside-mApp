@@ -180,7 +180,6 @@ export default Navigation = (props) => {
 
                 setDeviceSub(DeviceMotion.addListener(DeviceMotionCallback));
                 setGyroSub(Gyroscope.addListener(GyroscopeCallback));
-                
             });     
     }
 
@@ -400,7 +399,7 @@ export default Navigation = (props) => {
             y={0}
             width={SCREEN_WIDTH} 
             height={SCREEN_HEIGHT/2}
-            fit='scaleDown'
+            fit='fill'
             />
         );
     }
@@ -493,13 +492,25 @@ export default Navigation = (props) => {
 
             <View style={{marginTop:10}}>
                 <View style={styles.dataContainerMiddle}>
-                    <View style={{flexDirection:'column', marginHorizontal:10}}>
+                    <View style={{flexDirection:'column', marginHorizontal:10, justifyContent:'space-evenly'}}>
                         <Text style={styles.inputText}> n-Particles </Text>
                         <TextInput 
+                            key={"N-particles"}
                             value={JSON.stringify(occMap.getNrOfParticles())}
                             style={styles.input}
                             onChangeText={(e) =>{ 
                                 isNaN(parseInt(e,10))? occMap.setNrOfParticles(10) : occMap.setNrOfParticles(parseInt(e,10));
+                                _clear();
+                            }}
+                            inputMode="numeric"
+                        />
+                        <Text style={styles.inputText}> k-Best </Text>
+                        <TextInput 
+                            key={"kBest"}
+                            value={JSON.stringify(occMap.getK())}
+                            style={styles.input}
+                            onChangeText={(e) =>{ 
+                                isNaN(parseInt(e,10))? occMap.setK(1) : occMap.setK(parseInt(e,10));
                                 _clear();
                             }}
                             inputMode="numeric"
@@ -597,10 +608,11 @@ const styles = StyleSheet.create({
         paddingVertical: 3,
         width: "auto",
         textAlign: 'center',
+        height: 30
       },
       inputText: {
         marginRight: 6,
-        fontSize: 16,
+        fontSize: 14,
         fontWeight:'heavy',
       },
     

@@ -82,7 +82,7 @@ class OccupancyMap {
     constructor(binaryMap =[[0]], resolution=1){
         this.mapData = math.matrix(binaryMap);
         this.resolution = resolution;
-        this.nrOfParticles = 10;
+        this.nrOfParticles = 100;
         this.yWorldLimits = binaryMap.length
         this.xWorldLimits = binaryMap[0].length;
 
@@ -90,6 +90,7 @@ class OccupancyMap {
         this.initializedUserPosition = false;
         this.initializedUserHeading = false;
         this.particles = [];
+        this.kBest = 10;
 
         this.estimatedPos = {
             x: null,
@@ -101,6 +102,9 @@ class OccupancyMap {
     // GETTERS - SETTERS
     getNrOfParticles = () => {return this.nrOfParticles;}
     setNrOfParticles = (nrOfParticles) => {this.nrOfParticles = nrOfParticles;}
+
+    getK = () => {return this.kBest}
+    setK = (k) => {this.kBest = k}
 
     setEstimatedPos = (x, y) => {
         this.estimatedPos.x = x;
@@ -430,11 +434,17 @@ class OccupancyMap {
 
         this.particles.sort((a, b) => b.weight - a.weight);
 
-        let tenthBestParticles = math.subset(this.particles, math.index(math.range(0,math.ceil(this.nrOfParticles/10))));
-        let weightedSum = tenthBestParticles.reduce((sum, value) => sum + value.weight, 0);
-        this.estimatedPos.x = tenthBestParticles.reduce((sum, v) => sum + v.currPoint.x * v.weight, 0) / weightedSum;
-        this.estimatedPos.y = tenthBestParticles.reduce((sum, v) => sum + v.currPoint.y * v.weight, 0) / weightedSum;
-        this.estimatedPos.heading = tenthBestParticles.reduce((sum, v) => sum + v.heading * v.weight, 0) / weightedSum;
+        if(this.kBest === 1) {
+            this.estimatedPos.x = this.particles[0].currPoint.x;
+            this.estimatedPos.y = this.particles[0].currPoint.y;
+            this.estimatedPos.heading = this.particles[0].heading;
+            return;
+        }
+        let kBestParticles = math.subset(this.particles, math.index(math.range(0,this.kBest)));
+        let weightedSum = kBestParticles.reduce((sum, value) => sum + value.weight, 0);
+        this.estimatedPos.x = kBestParticles.reduce((sum, v) => sum + v.currPoint.x * v.weight, 0) / weightedSum;
+        this.estimatedPos.y = kBestParticles.reduce((sum, v) => sum + v.currPoint.y * v.weight, 0) / weightedSum;
+        this.estimatedPos.heading = kBestParticles.reduce((sum, v) => sum + v.heading * v.weight, 0) / weightedSum;
     }
 
     // RESAMPLE
