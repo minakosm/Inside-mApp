@@ -104,8 +104,8 @@ export default Navigation = (props) => {
     });
 
     function setInitPos(pxX, pxY) {
-        let userX = pxX * occMap.width/SCREEN_WIDTH;
-        let userY = pxY * (2 * occMap.height)/SCREEN_HEIGHT;
+        let userX = pxX * occMap.xWorldLimits/SCREEN_WIDTH;
+        let userY = pxY * (2 * occMap.yWorldLimits)/SCREEN_HEIGHT;
         if(occMap.isInsideWall(
             {currPoint: {
                 x: userX,
@@ -402,8 +402,8 @@ export default Navigation = (props) => {
                                 return(
                                     <Circle 
                                         key={i}
-                                        cx={occMap.particles[i].currPoint.x * SCREEN_WIDTH/occMap.width}
-                                        cy={occMap.particles[i].currPoint.y * SCREEN_HEIGHT/(2*occMap.height)}
+                                        cx={occMap.particles[i].currPoint.x * SCREEN_WIDTH/occMap.xWorldLimits}
+                                        cy={occMap.particles[i].currPoint.y * SCREEN_HEIGHT/(2*occMap.yWorldLimits)}
                                         r={2}
                                         color='red'
                                     />
@@ -414,20 +414,20 @@ export default Navigation = (props) => {
                             if(occMap.estimatedPos.x !== null || occMap.estimatedPos.y !== null) {
                                 return (
                                     <Group 
-                                    origin={{x: occMap.estimatedPos.x * SCREEN_WIDTH/occMap.width, y: occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.height)}}
+                                    origin={{x: occMap.estimatedPos.x * SCREEN_WIDTH/occMap.xWorldLimits, y: occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.yWorldLimits)}}
                                     transform = {[{ rotateZ: -occMap.estimatedPos.heading * math.pi/180 }]}>
                                         <Circle
                                         key={`Circle`}
-                                        cx={occMap.estimatedPos.x * SCREEN_WIDTH/occMap.width}
-                                        cy={occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.height)}
+                                        cx={occMap.estimatedPos.x * SCREEN_WIDTH/occMap.xWorldLimits}
+                                        cy={occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.yWorldLimits)}
                                         r={6}
                                         color='blue'
                                     />
                                     <ImageSVG 
                                         key={'SVG'}
                                         svg={svg}
-                                        x={occMap.estimatedPos.x * SCREEN_WIDTH/occMap.width -10}
-                                        y={occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.height)-20}
+                                        x={occMap.estimatedPos.x * SCREEN_WIDTH/occMap.xWorldLimits -10}
+                                        y={occMap.estimatedPos.y * SCREEN_HEIGHT/(2*occMap.yWorldLimits)-20}
                                         width={20}
                                         height={20}
                                     />
