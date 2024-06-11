@@ -72,6 +72,7 @@ export default Navigation = (props) => {
     });
 
     function DeviceMotionCallback(data){
+        if(!Object.keys(data).find((k) => k ==='accelerationIncludingGravity' || k === 'acceleration')) {return;}
         dataBuffer.current[0] = data.accelerationIncludingGravity;              // AccelerometerData in g
         dataBuffer.current[1] = data.acceleration;                              // Accelerometer Data in m/s^2
         if(dataBuffer.current.every((v) => v !== null)) {
@@ -82,6 +83,7 @@ export default Navigation = (props) => {
     function GyroscopeCallback(data){
         dataBuffer.current[2] = data;                                           // Angle Velocity in 3-axis in rad/s
         if(dataBuffer.current.every((v) => v !== null)) {
+            console.log(JSON.stringify(dataBuffer))
             update();
         }    
     }
@@ -95,14 +97,7 @@ export default Navigation = (props) => {
             // Get map Data
             const {binaryMap, size, resolution, imageName, extension} = await FileSystem.readAsStringAsync(result.assets[0].uri).then((res) => JSON.parse(res));
             let occupancyGrid = math.matrix(binaryMap);
-
             occMap = new OccupancyMap(occupancyGrid, resolution);
-            console.log(`=============== MAP ===============`)
-            console.log(occMap.resolution);
-            console.log(occMap.xWorldLimits);
-            console.log(occMap.yWorldLimits);
-            console.log(size);
-
             setMapImageName(imageName);
             setMapPicked(true)
         } else {
@@ -171,7 +166,6 @@ export default Navigation = (props) => {
     }
 
     const _subscribe = () => {
-        dataBuffer.current = [null, null, null];
         Promise.all([Accelerometer.isAvailableAsync(), DeviceMotion.isAvailableAsync(), Gyroscope.isAvailableAsync()])
             .then(() => {
                 console.log(`START SUBSCRIPTIONS`);
@@ -223,6 +217,7 @@ export default Navigation = (props) => {
         TIMESTAMP = temp;
         pdr.setDt(dt);
         // Get Data from buffer
+        console.log(JSON.stringify(dataBuffer));
         accObj = dataBuffer.current[0];
         accWGObj = dataBuffer.current[1];        
         gyroObj = dataBuffer.current[2];
