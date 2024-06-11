@@ -1,33 +1,8 @@
 import * as math from "mathjs";
 import { Navigation } from "./PedestrianDeadReckoning";
 
-const mapInfo = {
-    binaryMap: math.matrix([
-        [1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,1 ,1 ,1 ,1 ,0 ,0 ,0 ,0 ,0 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,0 ,0 ,1 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1],
-        [1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1]
-    ]),
-    xWorldLimits : 20,
-    yWorldLimits : 20,
-    resolution : 1
-}
+const MAX_WALL_DISTANCE = 0.4;
+const USER_DIRECTIONS = 8;
 
 class Particle {
     constructor() {
@@ -137,18 +112,6 @@ class OccupancyMap {
 
     }
 
-    // initMap = (binaryMap, resolution) => {
-    //     // let mapInfo = JSON.parse(mapPath);
-    //     this.mapData = math.matrix(binaryMap);
-    //     this.resolution = resolution;
-    //     this.yWorldLimits = Number(mapInfo.height);
-    //     this.xWorldLimits = Number(mapInfo.width);
-        
-    //     this.particles = new Array(this.nrOfParticles);
-
-    //     this.initParticles();
-    // }
-
     // PARTICLE FILTER INITIALIZATION
     initParticles = () => {
         console.log(`INIT ${this.nrOfParticles} PARTICLES`)
@@ -189,65 +152,64 @@ class OccupancyMap {
         this.initializedPF = true;
     }    
 
-    isOutOfBounds = (x, y) => {
-        let outOfBoundsX = x < 0 || x > this.mapData.size()[1] - 1;
-        let outOfBoundsY = y < 0 || y > this.mapData.size()[0] - 1;
+    isOutOfBounds = (i, j) => {
+        let outOfBoundsX = i < 0 || i > this.mapData.size()[0] - 1;
+        let outOfBoundsY = j < 0 || j > this.mapData.size()[1] - 1;
 
         return (outOfBoundsX || outOfBoundsY);
     }
 
     isInsideWall = (particle) => {
         // Given that resolution = cells/meter
-        let xCell = math.floor(particle.currPoint.x * this.resolution);
-        let yCell = math.floor(particle.currPoint.y * this.resolution);
-        let OOB = this.isOutOfBounds(xCell, yCell);
-        let res = OOB ? true : this.mapData.get([yCell, xCell]);
+        let iCell = math.floor(particle.currPoint.y * this.resolution);
+        let jCell = math.floor(particle.currPoint.x * this.resolution);
+        let OOB = this.isOutOfBounds(iCell, jCell);
+        let res = OOB ? true : this.mapData.get([iCell, jCell]);
         return res;
     }
 
     wallPassCheck = (particle) => {
         
         let prevCell = {
-            x: math.floor(particle.prevPoint.x * this.resolution), 
-            y: math.floor(particle.prevPoint.y * this.resolution)
+            i: math.floor(particle.prevPoint.y * this.resolution), 
+            j: math.floor(particle.prevPoint.x * this.resolution)
         };
 
         let currCell = {
-            x: math.floor(particle.currPoint.x * this.resolution),
-            y: math.floor(particle.currPoint.y * this.resolution)
+            i: math.floor(particle.currPoint.y * this.resolution),
+            j: math.floor(particle.currPoint.x * this.resolution)
         };
 
         let distance = {
-            x: currCell.x - prevCell.x,
-            y: currCell.y - prevCell.y
+            i: currCell.i - prevCell.j,
+            j: currCell.i - prevCell.j
         };
         
-        if(this.isOutOfBounds(currCell.x, currCell.y) || this.isInsideWall(particle)) {
+        if(this.isOutOfBounds(currCell.i, currCell.j) || this.isInsideWall(particle)) {
             return 0;
         }
-        if(math.norm([distance.x, distance.y])  <= 1) {
+        if(math.norm([distance.i, distance.j])  <= 1) {
             return 1;
         }
 
-        let yMin = prevCell.y === null ? currCell.y : math.min(currCell.y, prevCell.y);
-        let yMax = prevCell.y === null ? currCell.y : math.max(currCell.y, prevCell.y);
+        let iMin = prevCell.i === null ? currCell.i : math.min(currCell.i, prevCell.i);
+        let iMax = prevCell.i === null ? currCell.i : math.max(currCell.i, prevCell.i);
         
-        let xMin = prevCell.y === null ? currCell.x : math.min(currCell.x, prevCell.x);
-        let xMax = prevCell.y === null ? currCell.x : math.max(currCell.x, prevCell.x);
+        let jMin = prevCell.j === null ? currCell.j : math.min(currCell.j, prevCell.j);
+        let jMax = prevCell.j === null ? currCell.j : math.max(currCell.j, prevCell.j);
 
         let A = this.mapData.subset(math.index(
-            math.range(yMin,  yMax, true), 
-            math.range(xMin,  xMax, true)
+            math.range(iMin,  iMax, true), 
+            math.range(jMin,  jMax, true)
         ));
-
 
         let [r, c] = A.size();
 
-        let iStart = distance.y > 0 ? 0 : r-1;
-        let jStart = distance.x > 0 ? 0 : c-1;
+        let iStart = distance.i > 0 ? 0 : r-1;
+        let jStart = distance.j > 0 ? 0 : c-1;
 
-        let iEnd = distance.y > 0 ? r-1 : 0;
-        let jEnd = distance.x > 0 ? c-1 : 0;
+        let iEnd = distance.i > 0 ? r-1 : 0;
+        let jEnd = distance.j > 0 ? c-1 : 0;
 
         // let dirX = math.sign(distance.x);
         // let dirY = math.sign(distance.y);
@@ -284,63 +246,127 @@ class OccupancyMap {
     }
 
     distanceFromWalls = async (particle) => {
-        let xCell = math.floor(particle.currPoint.x * this.resolution);
-        let yCell = math.floor(particle.currPoint.y * this.resolution);
-        let maxDistance = math.floor(0.4 * this.resolution);
-        let [r, c] = this.mapData.size();
+        let iCell = math.floor(particle.currPoint.y * this.resolution);
+        let jCell = math.floor(particle.currPoint.x * this.resolution);
+
+        let maxDistance = math.ceil(MAX_WALL_DISTANCE * this.resolution);
+        console.log(`=========`)
+        console.log(`iCELL = ${iCell} \t    jCell=${jCell}`);
+        console.log(`maxDistance = ${maxDistance}`);
 
         // LOOK UP 
         let pUP = new Promise((resolve, reject)=>{
-            for(let i=1; i>=maxDistance; i++){
-                if(this.mapData.get([xCell, yCell-i]) === 1){
-                    resolve('HIT');
-                }
-            }
-            reject('No close to Wall')
-        })
-       
-
-        // LOOK DOWN 
-        let pDown = new Promise((resolve,reject)=>{
-            for(let i=1; i<maxDistance; i++) {
-                if(this.mapData.get([xCell, yCell+1]) === 1) {
-                    resolve('HIT');
+            for(let i=1; i<=maxDistance; i++){
+                if(this.mapData.get([iCell-i, jCell]) === 1){
+                    let realDistance = (i-1)/this.resolution + (particle.currPoint.y % (1/this.resolution));
+                    resolve(realDistance);
                 }
             }
             reject('No close to Wall');
         })
+
+        // LOOK UP-RIGHT
+        let pUpRight = new Promise((resolve, reject) => {
+            for(let i=1; i<=math.ceil(maxDistance/2); i++){
+                if(this.mapData.get([iCell-i, jCell+i]) === 1){
+                    let distUp = (i-1)/this.resolution + (particle.currPoint.y % (1/this.resolution));
+                    let distRight = (i-1)/this.resolution + (1/this.resolution - (particle.currPoint.x % (1/this.resolution)));
+                    let realDistance = math.sqrt(distUp**2 + distRight**2);
+                    resolve(realDistance);
+                }
+            }
+            reject('No close to Wall');
+        })
+
         // LOOK RIGHT
         let pRight = new Promise((resolve, reject) =>{
-            for(let i=1; i<maxDistance; i++) {
-                if(this.mapData.get([xCell+i ,yCell]) === 1) {
-                    resolve('HIT');
+            for(let i=1; i<=maxDistance; i++) {
+                if(this.mapData.get([iCell ,jCell+i]) === 1) {
+                    let realDistance = (i-1)/this.resolution + (1/this.resolution - (particle.currPoint.x % (1/this.resolution)));
+                    resolve(realDistance);
                 } 
             }
             reject('No close to Wall');
         })
-        
-        // LOOK LEFT
-        let pLeft = new Promise((resolve, reject) => {
-            for(let i=1; i>maxDistance; i++) {
-                if(this.mapData.get([xCell-i ,yCell]) === 1) {
-                    resolve('Hit');
+
+        //LOOK DOWN-RIGHT
+        let pDownRight = new Promise((resolve, reject)=>{
+            for(let i=1; i<=math.ceil(maxDistance/2); i++){
+                if(this.mapData.get([iCell+i, jCell+i]) === 1) {
+                    let distDown = (i-1)/this.resolution + (1/this.resolution - (particle.currPoint.y % (1/this.resolution)));
+                    let distRight = (i-1)/this.resolution + (1/this.resolution - (particle.currPoint.x % (1/this.resolution)));
+                    let realDistance = math.sqrt(distDown**2 + distRight**2);
+                    resolve(realDistance);
                 }
             }
             reject('No close to Wall');
         })
 
+        // LOOK DOWN
+        let pDown = new Promise((resolve,reject)=>{
+            for(let i=1; i<=maxDistance; i++) {
+                if(this.mapData.get([iCell+i, jCell]) === 1) {
+                    let realDistance = (i-1)/this.resolution + (1/this.resolution - (particle.currPoint.y % (1/this.resolution)));
+                    resolve(realDistance);
+                }
+            }
+            reject('No close to Wall');
+        })
         
-        return Promise.any([pUP, pDown, pLeft, pRight]);
+        // LOOK DOWN-LEFT
+        let pDownLeft = new Promise((resolve, reject)=>{
+            for(let i=1; i<=math.ceil(maxDistance/2); i++){
+                if(this.mapData.get([iCell+i, jCell-i]) === 1) {
+                    let distDown = (i-1)/this.resolution + (1/this.resolution - (particle.currPoint.y % (1/this.resolution)));
+                    let distLeft = (i-1)/this.resolution + (particle.currPoint.x % (1/this.resolution));
+                    let realDistance = math.sqrt(distDown**2 + distLeft**2);
+                    resolve(realDistance);
+                }
+            }
+            reject('No close to Wall');
+        })
+
+        // LOOK LEFT
+        let pLeft = new Promise((resolve, reject) => {
+            for(let i=1; i<=maxDistance; i++) {
+                if(this.mapData.get([iCell ,jCell-i]) === 1) {
+                    let realDistance = (i-1)/this.resolution + (particle.currPoint.x % (1/this.resolution));
+                    resolve(realDistance);
+                }
+            }
+            reject('No close to Wall');
+        })
+
+        //LOOK UP-LEFT
+        let pUpLeft = new Promise((resolve, reject)=>{
+            for(let i=1; i<=math.ceil(maxDistance/2); i++){
+                if(this.mapData.get([iCell-i, jCell-i]) === 1) {
+                    let distUp = (i-1)/this.resolution + (particle.currPoint.y % (1/this.resolution));
+                    let distLeft = (i-1)/this.resolution + (particle.currPoint.x % (1/this.resolution));
+                    let realDistance = math.sqrt(distUp**2 + distLeft**2);
+                    resolve(realDistance);
+                }
+            }
+            reject('No close to Wall');
+        })
+         
+        // let resolvedPromises = (await Promise.allSettled([pUP, pUpRight, pRight, pDownRight, pDown, pDownLeft, pLeft, pUpLeft])).filter((v) => v.status==='fulfilled').map((v) => v.value);
+
+        // let res = JSON.parse(JSON.stringify(resolvedPromises));
+        // console.log(`RES = ${res}`);
+        // return res;
+
+       return await Promise.allSettled([pUP, pUpRight, pRight, pDownRight, pDown, pDownLeft, pLeft, pUpLeft]);
     }
 
-    runParticleFilter = (stepLength, yawChange) => {
+    runParticleFilter = async (stepLength, yawChange) => {
         if(!this.initializedPF) { 
             this.initParticles();
             return; 
         }
         this.moveParticles(stepLength, yawChange);
 
-        this.updateWeights();
+        await this.updateWeights();
 
         // Compute the Neff
         let N = this.nrOfParticles;
@@ -403,7 +429,7 @@ class OccupancyMap {
     }
 
     // UPDATE
-    updateWeights = () => {
+    updateWeights = async () => {
         for (let p of this.particles) {
         //     if(p.weight !== 0){
         //         let potential = this.wallPassCheck(p);
@@ -427,9 +453,20 @@ class OccupancyMap {
                     p.weight = 0;
                     p.currPoint.x = p.currPoint.y = 0;
                     p.prevPoint.x = p.prevPoint.y = 0;
+                } else {
+
+                    let wallDistances = await this.distanceFromWalls(p).then((res) => {
+                        return res.filter((v)=>v.status==='fulfilled').map((v) => v.value);
+                    })
+                    console.log(`WALLDIST = ${JSON.stringify(wallDistances)}`);
+                    if(wallDistances.length > 0){
+                        let freeDirections = USER_DIRECTIONS - wallDistances.length; //all directions are 8;
+                        let maxDistanceSum = (USER_DIRECTIONS - freeDirections) * MAX_WALL_DISTANCE //maxWallDistance = 0.4
+                        let distanceSum = math.sum(wallDistances);
+
+                        p.weight = p.weight * (freeDirections/USER_DIRECTIONS) * (distanceSum/maxDistanceSum);
+                    }
                 }
-                let isCloseToWall = this.distanceFromWalls(p).then((res)=> true, (rej)=>false);
-                if(isCloseToWall) {p.weight = p.weight * 0.8;}
             }
         }
 
@@ -485,6 +522,7 @@ class OccupancyMap {
     }
 
 }
+
 
 // Using Box-Muller transform to generate a random number drawn from a normal ditstribution
 const gaussianRandom = (m, std) => {

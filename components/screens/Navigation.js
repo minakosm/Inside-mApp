@@ -210,7 +210,7 @@ export default Navigation = (props) => {
         occMap.clear();
     }
 
-    const update = () => {
+    const update = async () => {
         // Set up dt for computations in Navigation
         let temp = Date.now();
         let dt = (temp - TIMESTAMP) / 1000 // in sec
@@ -237,7 +237,7 @@ export default Navigation = (props) => {
         // }
 
         if(pdrResults.newStep || pdrResults.newTurn || !occMap.isPFInitialized()) {
-            occMap.runParticleFilter(pdrResults.stepLength, pdrResults.deltaTh);
+            await occMap.runParticleFilter(pdrResults.stepLength, pdrResults.deltaTh);
             setNewParticleUpdate({step: pdrResults.stepLength, turn: pdrResults.deltaTh})
         }
         // Clear buffer
@@ -324,39 +324,39 @@ export default Navigation = (props) => {
         
     }
 
-    const addStep = () => {
+    const addStep = async() => {
         if(newParticleUpdate.step === null) {
             alert(`Unable to Add Step!`)
             return;
         }
-        occMap.runParticleFilter(0.6, 0);
+        await occMap.runParticleFilter(0.6, 0);
         setNewParticleUpdate({step: 0.6, turn: newParticleUpdate.turn})
     }
 
-    const removeStep = () => {
+    const removeStep = async () => {
         if(newParticleUpdate.step === null || newParticleUpdate.step === 0) {
             alert(`Unable to Remove Step!`)
             return;
         }
-        occMap.runParticleFilter(-math.abs(newParticleUpdate.step), 0);
+        await occMap.runParticleFilter(-math.abs(newParticleUpdate.step), 0);
         setNewParticleUpdate({step: -newParticleUpdate.step, turn: newParticleUpdate.turn})
     }
 
-    const turnRight = () => {
+    const turnRight = async () => {
         if(newParticleUpdate.turn === null || !math.isNumber(occMap.estimatedPos.x) || !math.isNumber(occMap.estimatedPos.y)) {
             alert(`Unable to Change Heading!`);
             return;
         }
-        occMap.runParticleFilter(0, -45);
+        await occMap.runParticleFilter(0, -45);
         setNewParticleUpdate({step: newParticleUpdate.step, turn: -45});
     }
 
-    const turnLeft = () => {
+    const turnLeft = async () => {
         if(newParticleUpdate.turn === null || !math.isNumber(occMap.estimatedPos.x) || !math.isNumber(occMap.estimatedPos.y)) {
             alert(`Unable to Change Heading!`);
             return;
         }
-        occMap.runParticleFilter(0, 45);
+        await occMap.runParticleFilter(0, 45);
         setNewParticleUpdate({step: newParticleUpdate.step, turn: 45});
     }
 
