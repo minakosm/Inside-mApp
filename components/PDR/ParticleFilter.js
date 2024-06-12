@@ -54,12 +54,13 @@ class Particle {
  }
  
 class OccupancyMap {
-    constructor(binaryMap = math.matrix([[0]]), resolution=1){
+    constructor(binaryMap = math.matrix([[0]]), resolution=1, rooms = [{x:0, y:0, w:0, h:0, id:0}]){
         this.mapData = math.matrix(binaryMap);
         this.resolution = resolution;
         this.nrOfParticles = 100;
         this.yWorldLimits = binaryMap.size()[0] / resolution;
-        this.xWorldLimits = binaryMap.size()[1] / resolution
+        this.xWorldLimits = binaryMap.size()[1] / resolution;
+        this.rooms = rooms;
 
         this.initializedPF = false;
         this.initializedUserPosition = false;
@@ -70,7 +71,8 @@ class OccupancyMap {
         this.estimatedPos = {
             x: null,
             y: null,
-            heading: 0
+            heading: 0,
+            room: 0
         };
     }
 
@@ -84,7 +86,7 @@ class OccupancyMap {
     setEstimatedPos = (x, y) => {
         this.estimatedPos.x = x;
         this.estimatedPos.y = y;
-
+        this.estimatedPos.room = this.inRoom();
         this.initializedPF = false;
         this.initializedUserPosition = true;
         console.log(`INIT POS ${x}, ${y}`);
@@ -166,6 +168,16 @@ class OccupancyMap {
         let OOB = this.isOutOfBounds(iCell, jCell);
         let res = OOB ? true : this.mapData.get([iCell, jCell]);
         return res;
+    }
+
+    inRoom = () => {
+        let iCell = math.floor(this.estimatedPos.y * this.resolution);
+        let jCell = math.floor(this.estimatedPos.x * this.resolution);
+        for(let room of this.rooms) {
+            if (room.x <= jCell && jCell < (room.x + room.w) && room.y <= iCell && iCell < (room.y + room.h)){
+                return room.id;
+            }
+        }
     }
 
     wallPassCheck = (particle) => {
@@ -478,11 +490,14 @@ class OccupancyMap {
             this.estimatedPos.heading = this.particles[0].heading;
             return;
         }
+
         let kBestParticles = math.subset(this.particles, math.index(math.range(0,this.kBest)));
         let weightedSum = kBestParticles.reduce((sum, value) => sum + value.weight, 0);
         this.estimatedPos.x = kBestParticles.reduce((sum, v) => sum + v.currPoint.x * v.weight, 0) / weightedSum;
         this.estimatedPos.y = kBestParticles.reduce((sum, v) => sum + v.currPoint.y * v.weight, 0) / weightedSum;
         this.estimatedPos.heading = kBestParticles.reduce((sum, v) => sum + v.heading * v.weight, 0) / weightedSum;
+
+        this.estimatedPos.room = this.inRoom();
     }
 
     // RESAMPLE

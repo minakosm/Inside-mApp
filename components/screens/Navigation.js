@@ -98,9 +98,10 @@ export default Navigation = (props) => {
         // If file picked succesfully
         if(!result.canceled) {
             // Get map Data
-            const {binaryMap, size, resolution, imageName, extension} = await FileSystem.readAsStringAsync(result.assets[0].uri).then((res) => JSON.parse(res));
+            const {binaryMap, size, resolution, imageName, extension, rooms} = await FileSystem.readAsStringAsync(result.assets[0].uri).then((res) => JSON.parse(res));
             let occupancyGrid = math.matrix(binaryMap);
-            occMap = new OccupancyMap(occupancyGrid, resolution);
+            console.log(JSON.stringify(rooms));
+            occMap = new OccupancyMap(occupancyGrid, resolution, rooms);
             setMapImageName(imageName);
             setMapPicked(true)
         } else {
@@ -249,9 +250,11 @@ export default Navigation = (props) => {
                 LOCATION_DATA.push({
                     x: occMap.estimatedPos.x,
                     y: occMap.estimatedPos.y,
+                    r: occMap.estimatedPos.room,
                     t: tmpT, 
                 })
-                // console.log(LOCATION_DATA);
+                console.log(`LOCDATA`)
+                console.log(LOCATION_DATA);
                 setNewParticleUpdate({step: pdrResults.stepLength, turn: pdrResults.deltaTh})
             });
         }
@@ -360,8 +363,11 @@ export default Navigation = (props) => {
         LOCATION_DATA.push({
             x: occMap.estimatedPos.x,
             y: occMap.estimatedPos.y,
+            r: occMap.estimatedPos.room,
             t: tmpT, 
         })
+        console.log(`LOCDATA`)
+        console.log(LOCATION_DATA.at(-1));
         setNewParticleUpdate({step: 0.6, turn: newParticleUpdate.turn})
         
     }
@@ -374,7 +380,6 @@ export default Navigation = (props) => {
         await occMap.runParticleFilter(-math.abs(newParticleUpdate.step), 0);
         setNewParticleUpdate({step: -newParticleUpdate.step, turn: newParticleUpdate.turn})
     }
-
 
     const turnRight = async () => {
         if(newParticleUpdate.turn === null || !math.isNumber(occMap.estimatedPos.x) || !math.isNumber(occMap.estimatedPos.y)) {
@@ -418,7 +423,7 @@ export default Navigation = (props) => {
     const ImageItem = ({name}) => {
         let SkiaImage;
         switch (name) {
-            case "testMap":
+            case "livingRoomMap":
                 SkiaImage = useImage(require("../../assets/maps/cropLR.png"));
                 break;
             case "labMap":
@@ -504,7 +509,7 @@ export default Navigation = (props) => {
                                     </Group>
                                 )
                             }
-                        })}         
+                        })}       
                     </Canvas>
                 </GestureDetector>
             </GestureHandlerRootView>
