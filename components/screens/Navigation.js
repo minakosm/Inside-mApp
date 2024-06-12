@@ -34,7 +34,8 @@ const gyroscopeData = new SensorData();
 
 const pdr = new PedestrianDeadReckoning();
 
-const  LOCATION_DATA = [];
+const LOCATION_DATA = [];
+const ROOM_SWITCH = []
 TIMESTAMP = Date.now();
 let tmpT;
 
@@ -205,6 +206,7 @@ export default Navigation = (props) => {
         PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 
         LOCATION_DATA.splice(0, LOCATION_DATA.length);
+        ROOM_SWITCH.splice(0,ROOM_SWITCH.length);
 
         setClear(true);
         setNewParticleUpdate({
@@ -278,7 +280,8 @@ export default Navigation = (props) => {
                 y: gyroscopeData.y,
                 z: gyroscopeData.z,
             },
-            locations: LOCATION_DATA
+            locations: LOCATION_DATA, 
+            switches: ROOM_SWITCH,
           }];
         //   let DATA = [
         //     {name: "acc", size: accelerometerData.x.length, data:{x: accelerometerData.x, y: accelerometerData.y, z: accelerometerData.z}}, 
@@ -346,7 +349,6 @@ export default Navigation = (props) => {
         }
 
         setStart(false);
-        
     }
 
     const addStep = async() => {
@@ -373,6 +375,7 @@ export default Navigation = (props) => {
         setNewParticleUpdate({step: -newParticleUpdate.step, turn: newParticleUpdate.turn})
     }
 
+
     const turnRight = async () => {
         if(newParticleUpdate.turn === null || !math.isNumber(occMap.estimatedPos.x) || !math.isNumber(occMap.estimatedPos.y)) {
             alert(`Unable to Change Heading!`);
@@ -389,6 +392,11 @@ export default Navigation = (props) => {
         }
         await occMap.runParticleFilter(0, 45);
         setNewParticleUpdate({step: newParticleUpdate.step, turn: 45});
+    }
+
+    const switchRoom = () => {
+        ROOM_SWITCH.push(LOCATION_DATA.length);
+        console.log(`switch = ${JSON.stringify(ROOM_SWITCH)}`)
     }
 
     function welcomeScreen() {
@@ -511,6 +519,9 @@ export default Navigation = (props) => {
                     </TouchableHighlight>
                     <TouchableHighlight onPress={turnRight} style={styles.button}>
                         <Text style={styles.buttonText}>- 45°</Text>
+                    </TouchableHighlight>
+                    <TouchableHighlight onPress={switchRoom} style={styles.button}>
+                        <Text style={styles.buttonText}>RoomChange</Text>
                     </TouchableHighlight>
                 </View>
             </View>
