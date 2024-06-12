@@ -31,6 +31,7 @@ import PDRApp from './components/PDR/PDR';
 
 import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 const { StorageAccessFramework } = FileSystem;
 
 
@@ -86,9 +87,11 @@ function MyTabs() {
 export default function App() {
   return(
     <RootSiblingParent>
-      <NavigationContainer>
-         <MyTabs />
-      </NavigationContainer>
+      <SafeAreaProvider>
+        <NavigationContainer>
+          <MyTabs />
+        </NavigationContainer>
+      </SafeAreaProvider>
     </RootSiblingParent> 
 
    /* <PDRApp test={'this is a prop'}/> */

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, Component } from "react";
-import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollView, TextInput, TextInputComponent, } from "react-native";
+import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollView, TextInput, TextInputComponent, SafeAreaView, } from "react-native";
 
 // Import Canvas
 // import Canvas from "react-native-canvas";
@@ -25,6 +25,7 @@ import { OccupancyMap, Particle } from "../PDR/ParticleFilter";
 
 // Gestures
 import { GestureHandlerRootView, GestureDetector, Gesture } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 const _freqUpdate = 20; // 20 ms (50 hz) sample period (frequency) from motion sensors
 
@@ -34,7 +35,9 @@ const gyroscopeData = new SensorData();
 
 const pdr = new PedestrianDeadReckoning();
 
+const  LOCATION_DATA = [];
 TIMESTAMP = Date.now();
+let tmpT;
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const PATH = Skia.Path.Make();
@@ -83,7 +86,6 @@ export default Navigation = (props) => {
     function GyroscopeCallback(data){
         dataBuffer.current[2] = data;                                           // Angle Velocity in 3-axis in rad/s
         if(dataBuffer.current.every((v) => v !== null)) {
-            console.log(JSON.stringify(dataBuffer))
             update();
         }    
     }
@@ -201,6 +203,8 @@ export default Navigation = (props) => {
         PATH.reset();
         PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 
+        LOCATION_DATA.splice(0, LOCATION_DATA.length);
+
         setClear(true);
         setNewParticleUpdate({
             step: null,
@@ -217,7 +221,7 @@ export default Navigation = (props) => {
         TIMESTAMP = temp;
         pdr.setDt(dt);
         // Get Data from buffer
-        console.log(JSON.stringify(dataBuffer));
+        let tmpT = dataBuffer.current.map((v) => v.timestamp).reduce((v, t) => math.max(v, t));
         accObj = dataBuffer.current[0];
         accWGObj = dataBuffer.current[1];        
         gyroObj = dataBuffer.current[2];
@@ -237,8 +241,15 @@ export default Navigation = (props) => {
         // }
 
         if(pdrResults.newStep || pdrResults.newTurn || !occMap.isPFInitialized()) {
-            await occMap.runParticleFilter(pdrResults.stepLength, pdrResults.deltaTh);
-            setNewParticleUpdate({step: pdrResults.stepLength, turn: pdrResults.deltaTh})
+            await occMap.runParticleFilter(pdrResults.stepLength, pdrResults.deltaTh).then((res) =>{
+                LOCATION_DATA.push({
+                    x: occMap.estimatedPos.x,
+                    y: occMap.estimatedPos.y,
+                    t: tmpT, 
+                })
+                console.log(LOCATION_DATA);
+                setNewParticleUpdate({step: pdrResults.stepLength, turn: pdrResults.deltaTh})
+            });
         }
         // Clear buffer
         dataBuffer.current = [null, null, null];
@@ -330,7 +341,13 @@ export default Navigation = (props) => {
             return;
         }
         await occMap.runParticleFilter(0.6, 0);
+        LOCATION_DATA.push({
+            x: occMap.estimatedPos.x,
+            y: occMap.estimatedPos.y,
+            t: tmpT, 
+        })
         setNewParticleUpdate({step: 0.6, turn: newParticleUpdate.turn})
+        
     }
 
     const removeStep = async () => {
@@ -401,9 +418,10 @@ export default Navigation = (props) => {
     }, [mapPicked, start, clear, newParticleUpdate]);
 
     return !mapPicked? welcomeScreen() : (
+        <SafeAreaView>
         <View style={styles.container}>
             <ScrollView>
-            <View style={[styles.dataContainerMiddle, {marginTop:'15%'}]}>
+            <View style={styles.dataContainerMiddle}>
             <TouchableHighlight onPress={start ? _unsubscribe : _subscribe} style={styles.button}>
                 <Text style={styles.buttonText}>{!start ? 'START' : 'STOP'}</Text>
             </TouchableHighlight>
@@ -520,6 +538,7 @@ export default Navigation = (props) => {
             
             </ScrollView>
         </View>
+        </SafeAreaView>
     );
 
 }

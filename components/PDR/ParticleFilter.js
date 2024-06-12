@@ -87,7 +87,7 @@ class OccupancyMap {
 
         this.initializedPF = false;
         this.initializedUserPosition = true;
-        console.log(`INIT POS`);
+        console.log(`INIT POS ${x}, ${y}`);
     }
     setEstimatedHeading = (theta) => {
         this.estimatedPos.heading = theta;
@@ -250,9 +250,6 @@ class OccupancyMap {
         let jCell = math.floor(particle.currPoint.x * this.resolution);
 
         let maxDistance = math.ceil(MAX_WALL_DISTANCE * this.resolution);
-        console.log(`=========`)
-        console.log(`iCELL = ${iCell} \t    jCell=${jCell}`);
-        console.log(`maxDistance = ${maxDistance}`);
 
         // LOOK UP 
         let pUP = new Promise((resolve, reject)=>{
@@ -458,7 +455,6 @@ class OccupancyMap {
                     let wallDistances = await this.distanceFromWalls(p).then((res) => {
                         return res.filter((v)=>v.status==='fulfilled').map((v) => v.value);
                     })
-                    console.log(`WALLDIST = ${JSON.stringify(wallDistances)}`);
                     if(wallDistances.length > 0){
                         let freeDirections = USER_DIRECTIONS - wallDistances.length; //all directions are 8;
                         let maxDistanceSum = (USER_DIRECTIONS - freeDirections) * MAX_WALL_DISTANCE //maxWallDistance = 0.4
