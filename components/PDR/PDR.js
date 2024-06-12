@@ -121,18 +121,18 @@ export default PDRApp = (props) => {
                 setClear(false);
 
 
-                setDeviceSub(DeviceMotion.addListener((data) => {
+                setDeviceSub(DeviceMotion.addListener(async (data) => {
                     dataBuffer.current[0] = data.accelerationIncludingGravity;              // AccelerometerData in g
                     dataBuffer.current[1] = data.acceleration;                              // Accelerometer Data in m/s^2
                     if(dataBuffer.current.every((v) => math.isNull(v) == false)) {
-                        update();                     
+                        await update();                     
                     }
                 }));
 
-                Gyroscope.addListener((data) => {
+                Gyroscope.addListener(async(data) => {
                     dataBuffer.current[2] = data;                                           // Angle Velocity in 3-axis in rad/s
                     if(dataBuffer.current.every((v) => math.isNull(v) == false)) {
-                        update();
+                       await update();
                     }
                 });
 

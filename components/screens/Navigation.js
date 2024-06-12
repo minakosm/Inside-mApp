@@ -6,7 +6,6 @@ import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollVi
 import { Canvas, Group, Circle, Skia, Rect, useImage, Image, ImageSVG, useImageAsTexture, loadData } from "@shopify/react-native-skia";
 // Import Sensor Related Libraries
 import { Gyroscope, DeviceMotion, Accelerometer} from "expo-sensors";
-import * as ExpImage from 'expo-image'
 import { SensorData } from "../utils/SensorData";
 
 // Math Library
@@ -67,7 +66,7 @@ export default Navigation = (props) => {
     const [mapImageName, setMapImageName] = useState(" ");    
     const [mapPicked, setMapPicked] = useState(false);
     
-    const dataBuffer = useRef([null, null, null]);
+    const dataBuffer = useRef([null, null, null, null]);
     
     const userTapPos = useSharedValue({
         x: 0,
@@ -77,14 +76,15 @@ export default Navigation = (props) => {
     function DeviceMotionCallback(data){
         if(!Object.keys(data).find((k) => k ==='accelerationIncludingGravity' || k === 'acceleration')) {return;}
         dataBuffer.current[0] = data.accelerationIncludingGravity;              // AccelerometerData in g
-        dataBuffer.current[1] = data.acceleration;                              // Accelerometer Data in m/s^2
+        dataBuffer.current[1] = data.acceleration;
+        dataBuffer.current[3] = data.interval;                              // Accelerometer Data in m/s^2
         if(dataBuffer.current.every((v) => v !== null)) {
             update();                     
         }
     }
 
     function GyroscopeCallback(data){
-        dataBuffer.current[2] = data;                                           // Angle Velocity in 3-axis in rad/s
+        dataBuffer.current[2] = data;   
         if(dataBuffer.current.every((v) => v !== null)) {
             update();
         }    
@@ -179,6 +179,7 @@ export default Navigation = (props) => {
 
                 setDeviceSub(DeviceMotion.addListener(DeviceMotionCallback));
                 setGyroSub(Gyroscope.addListener(GyroscopeCallback));
+
             });     
     }
 
@@ -220,11 +221,12 @@ export default Navigation = (props) => {
         let dt = (temp - TIMESTAMP) / 1000 // in sec
         TIMESTAMP = temp;
         pdr.setDt(dt);
+        // console.log(JSON.stringify(dataBuffer.current))
         // Get Data from buffer
-        let tmpT = dataBuffer.current.map((v) => v.timestamp).reduce((v, t) => math.max(v, t));
         accObj = dataBuffer.current[0];
         accWGObj = dataBuffer.current[1];        
         gyroObj = dataBuffer.current[2];
+        tmpT = dataBuffer.current[3];
 
         // Store Data in SensorData objects
         accelerometerData.pushData(accObj);
@@ -247,12 +249,12 @@ export default Navigation = (props) => {
                     y: occMap.estimatedPos.y,
                     t: tmpT, 
                 })
-                console.log(LOCATION_DATA);
+                // console.log(LOCATION_DATA);
                 setNewParticleUpdate({step: pdrResults.stepLength, turn: pdrResults.deltaTh})
             });
         }
         // Clear buffer
-        dataBuffer.current = [null, null, null];
+        dataBuffer.current = [null, null, null, null];
     }
 
     // Save Function to store localy a Data File from current Session
@@ -265,15 +267,28 @@ export default Navigation = (props) => {
           // Get the directory uri that was approved
           let directoryUri = permissions.directoryUri;
 
-          let DATA = [
-            {name: "acc", size: accelerometerData.x.length, data:{x: accelerometerData.x, y: accelerometerData.y, z: accelerometerData.z}}, 
-            {name: "gyro", size: gyroscopeData.x.length, data:{x: gyroscopeData.x, y: gyroscopeData.y, z: gyroscopeData.z}},
-            // {name: "mag_rot", size: navEKF.xMagRotHistory.length, data:{x: navEKF.xMagRotHistory, y: navEKF.yMagRotHistory, z: navEKF.zMagRotHistory}}, 
-            {name: "acc_wg", size: accelerationWithoutGravity.x.length, data:{x: accelerationWithoutGravity.x, y: accelerationWithoutGravity.y, z: accelerationWithoutGravity.z}},
-            // {name: "acc_rot", size: navEKF.xAccRotHistory.length, data:{x: navEKF.xAccRotHistory, y: navEKF.yAccRotHistory, z: navEKF.zAccRotHistory}},
-            // {name: "vel", size: navEKF.xVelHistory.length, data:{x: navEKF.xVelHistory, y: navEKF.yVelHistory}},
-            {name: "pos", size: pdr.POSITION_HISTORY.length(), data:{x: pdr.POSITION_HISTORY.data.x, y: pdr.POSITION_HISTORY.data.y}}, 
-          ]
+          let DATA = [{
+            acc: {
+                x: accelerationWithoutGravity.x,
+                y: accelerationWithoutGravity.y,
+                z: accelerationWithoutGravity.z,
+            },
+            gyro: {
+                x: gyroscopeData.x,
+                y: gyroscopeData.y,
+                z: gyroscopeData.z,
+            },
+            locations: LOCATION_DATA
+          }];
+        //   let DATA = [
+        //     {name: "acc", size: accelerometerData.x.length, data:{x: accelerometerData.x, y: accelerometerData.y, z: accelerometerData.z}}, 
+        //     {name: "gyro", size: gyroscopeData.x.length, data:{x: gyroscopeData.x, y: gyroscopeData.y, z: gyroscopeData.z}},
+        //     // {name: "mag_rot", size: navEKF.xMagRotHistory.length, data:{x: navEKF.xMagRotHistory, y: navEKF.yMagRotHistory, z: navEKF.zMagRotHistory}}, 
+        //     {name: "acc_wg", size: accelerationWithoutGravity.x.length, data:{x: accelerationWithoutGravity.x, y: accelerationWithoutGravity.y, z: accelerationWithoutGravity.z}},
+        //     // {name: "acc_rot", size: navEKF.xAccRotHistory.length, data:{x: navEKF.xAccRotHistory, y: navEKF.yAccRotHistory, z: navEKF.zAccRotHistory}},
+        //     // {name: "vel", size: navEKF.xVelHistory.length, data:{x: navEKF.xVelHistory, y: navEKF.yVelHistory}},
+        //     {name: "pos", size: pdr.POSITION_HISTORY.length(), data:{x: pdr.POSITION_HISTORY.data.x, y: pdr.POSITION_HISTORY.data.y}}, 
+        //   ]
 
         const filename = date.getDate() + "_" + date.getMonth() + "_" + date.getFullYear() + "_" + date.getHours() + ":" + date.getMinutes();
           // Create file and pass it's SAF URI
@@ -316,8 +331,7 @@ export default Navigation = (props) => {
                 accelerometerData.pushData(accObj);
                 accelerationWithoutGravity.pushData(accWGObj);
         
-                gyroscopeData.pushData(gyroObj);
-                
+                gyroscopeData.pushData(gyroObj);     
 
                 let updatePath = pdr.runEKF(accWGObj, gyroObj, magObj);
 
@@ -421,7 +435,7 @@ export default Navigation = (props) => {
         <SafeAreaView>
         <View style={styles.container}>
             <ScrollView>
-            <View style={styles.dataContainerMiddle}>
+            <View style={[styles.dataContainerMiddle, {marginTop: '15%'}]}>
             <TouchableHighlight onPress={start ? _unsubscribe : _subscribe} style={styles.button}>
                 <Text style={styles.buttonText}>{!start ? 'START' : 'STOP'}</Text>
             </TouchableHighlight>
