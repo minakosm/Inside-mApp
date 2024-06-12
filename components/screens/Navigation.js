@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, Component } from "react";
-import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollView, TextInput, TextInputComponent, SafeAreaView, } from "react-native";
+import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollView, TextInput, TextInputComponent, SafeAreaView, ToastAndroid, } from "react-native";
 
 // Import Canvas
 // import Canvas from "react-native-canvas";
@@ -35,7 +35,7 @@ const gyroscopeData = new SensorData();
 const pdr = new PedestrianDeadReckoning();
 
 const LOCATION_DATA = [];
-const ROOM_SWITCH = []
+let ROOM_SWITCH = []
 TIMESTAMP = Date.now();
 let tmpT;
 
@@ -396,7 +396,11 @@ export default Navigation = (props) => {
 
     const switchRoom = () => {
         ROOM_SWITCH.push(LOCATION_DATA.length);
+        ToastAndroid.show('Room Change Noted!', ToastAndroid.SHORT);
         console.log(`switch = ${JSON.stringify(ROOM_SWITCH)}`)
+        ROOM_SWITCH = ROOM_SWITCH.filter((v, i) => ROOM_SWITCH.indexOf(v) === i);
+        console.log(`switch = ${JSON.stringify(ROOM_SWITCH)}`)
+        console.log(`----`)
     }
 
     function welcomeScreen() {
@@ -415,7 +419,7 @@ export default Navigation = (props) => {
         let SkiaImage;
         switch (name) {
             case "testMap":
-                SkiaImage = useImage(require("../../assets/maps/testMap.png"));
+                SkiaImage = useImage(require("../../assets/maps/cropLR.png"));
                 break;
             case "labMap":
                 SkiaImage = useImage(require("../../assets/maps/labMap.png"));
@@ -511,9 +515,9 @@ export default Navigation = (props) => {
                     <TouchableHighlight onPress={addStep} style={styles.button}>
                         <Text style={styles.buttonText}>+ Step</Text>
                     </TouchableHighlight>
-                    <TouchableHighlight onPress={removeStep} style={styles.button}>
+                    {/* <TouchableHighlight onPress={removeStep} style={styles.button}>
                         <Text style = {styles.buttonText}>- Step</Text>
-                    </TouchableHighlight>
+                    </TouchableHighlight> */}
                     <TouchableHighlight onPress={turnLeft} style={styles.button}>
                         <Text style={styles.buttonText}>+ 45°</Text>
                     </TouchableHighlight>
