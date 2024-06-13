@@ -516,7 +516,7 @@ export default Navigation = (props) => {
             </View>
 
             <View style={{marginTop:5}}>
-                <View style={styles.dataContainerMiddle}>
+                <View style={[styles.dataContainerMiddle, {alignItems: 'flex-start'}]}>
                     <TouchableHighlight onPress={addStep} style={styles.button}>
                         <Text style={styles.buttonText}>+ Step</Text>
                     </TouchableHighlight>
@@ -536,7 +536,7 @@ export default Navigation = (props) => {
             </View>
 
             <View style={{marginTop:10}}>
-                <View style={styles.dataContainerMiddle}>
+                <View style={[styles.dataContainerMiddle, {alignSelf:'flex-start'}]}>
                     <View style={{flexDirection:'column', marginHorizontal:10, justifyContent:'space-evenly'}}>
                         <Text style={styles.inputText}> n-Particles </Text>
                         <TextInput 
@@ -561,11 +561,14 @@ export default Navigation = (props) => {
                             inputMode="numeric"
                         />
                     </View>
+                    <View style={{flexDirection:'column', marginHorizontal:10, justifyContent:'space-evenly'}}>
+                        <Text style={{color: 'red'}}> CURRENT ROOM ID: {occMap.getRoomID()}</Text>
+                    </View>
 
                 </View>
             </View>
-            <View style={styles.dataContainerMiddle}>
-                <View style={{marginTop:10, flex:1, alignContent:'center'}}>
+            <View style={[styles.dataContainerMiddle, {alignSelf:'center'} ]}>
+                <View style={{marginTop:10, flex:1, alignContent:'center', flexBasis:'auto'}}>
                     <Text style={{color:'#007'}} onPress={()=>{setMapPicked(false)}}>HomeScreen</Text>
                 </View>
             </View>

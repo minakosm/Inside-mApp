@@ -447,7 +447,7 @@ export class PedestrianDeadReckoning {
         This judgement module detects step events and calculates their length and velocity
     */
     SDUP() {
-        let K = 0;
+        const K = 0.5762;;
         for (let i = 0; i < SDUP_Z_LP.length - 1; i++) {
             if (SDUP_Z_LP[i] > SDUP_ACC_THRESHOLD && !SDUP_STEP_DETECTED) {
                 SDUP_STEP_DETECTED = true;
@@ -470,11 +470,11 @@ export class PedestrianDeadReckoning {
                     SDUP_STEP_DETECTED = false;
                     SDUP_ZERO_CROSS = false;
 
-                    if (SDUP_MAX + math.abs(SDUP_MIN) > 4.5) {
-                        K = 0.7;
-                    } else {
-                        K = 0.5762;
-                    }
+                    // if (SDUP_MAX + math.abs(SDUP_MIN) > 4.5) {
+                    //     K = 0.7;
+                    // } else {
+                    //     K = 0.5762;
+                    // }
 
                     //K = 0.579;
 

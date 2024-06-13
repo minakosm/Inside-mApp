@@ -83,6 +83,8 @@ class OccupancyMap {
     getK = () => {return this.kBest}
     setK = (k) => {this.kBest = k}
 
+    getRoomID = () => {return this.estimatedPos.room}
+    
     setEstimatedPos = (x, y) => {
         this.estimatedPos.x = x;
         this.estimatedPos.y = y;
