@@ -424,7 +424,7 @@ export default Navigation = (props) => {
         let SkiaImage;
         switch (name) {
             case "livingRoomMap":
-                SkiaImage = useImage(require("../../assets/maps/cropLR.png"));
+                SkiaImage = useImage(require("../../assets/maps/livingRoomMap.png"));
                 break;
             case "labMap":
                 SkiaImage = useImage(require("../../assets/maps/labMap.png"));
