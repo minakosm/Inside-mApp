@@ -473,7 +473,7 @@ export class PedestrianDeadReckoning {
                     if (SDUP_MAX + math.abs(SDUP_MIN) > 4.5) {
                         K = 0.7;
                     } else {
-                        K = 0.579;
+                        K = 0.5762;
                     }
 
                     //K = 0.579;
