@@ -509,7 +509,30 @@ export default Navigation = (props) => {
                                     </Group>
                                 )
                             }
-                        })}       
+                        })}
+                        {/* {new Array(occMap.rooms.length).fill(0).map((v,i) => {
+                            let x = (occMap.rooms[i].x / occMap.resolution) * (SCREEN_WIDTH/occMap.xWorldLimits);
+                            let y = occMap.rooms[i].y / occMap.resolution * (SCREEN_HEIGHT/ (2 * occMap.yWorldLimits));
+                            let w = occMap.rooms[i].w / occMap.resolution * (SCREEN_WIDTH/occMap.xWorldLimits);
+                            let h = occMap.rooms[i].h / occMap.resolution * (SCREEN_HEIGHT/ (2 * occMap.yWorldLimits));
+
+                            let r = occMap.rooms[i].id === 1 ? 255 : 0;
+                            let g = occMap.rooms[i].id === 2 ? 255 : 0;
+                            let b = occMap.rooms[i].id === 3 ? 255 : 0;
+
+                            let c = 'rgb('+r+','+g+','+b+')'
+                            return (
+                                <Rect
+                                    key={occMap.rooms[i].id}
+                                    x={x}
+                                    y={y}
+                                    width={w}
+                                    height={h}
+                                    color={c}
+                                    opacity={0.4}
+                                />
+                            )
+                        })}        */}
                     </Canvas>
                 </GestureDetector>
             </GestureHandlerRootView>
