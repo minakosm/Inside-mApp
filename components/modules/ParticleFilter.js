@@ -418,7 +418,7 @@ class OccupancyMap {
             let p = this.particles[i];
             if (p.weight != 0)  {
                 let dl = gaussianRandom(0, 0.2);
-                let dth = gaussianRandom(0, 2);
+                let dth = gaussianRandom(0, 5);
 
                 p.heading = p.heading + deltaTheta + dth;
                 p.prevPoint.x = p.currPoint.x;

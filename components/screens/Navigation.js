@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollView, TextInput, SafeAreaView, ToastAndroid, } from "react-native";
 
 // Import Canvas
-// import Canvas from "react-native-canvas";
 import { Canvas, Group, Circle, Skia, useImage, Image, ImageSVG } from "@shopify/react-native-skia";
+
 // Import Sensor Related Libraries
 import { Gyroscope, DeviceMotion, Accelerometer} from "expo-sensors";
 import { SensorData } from "../utils/SensorData";
@@ -18,29 +18,27 @@ const { StorageAccessFramework } = FileSystem;
 
 // Custom Modules 
 import { PedestrianDeadReckoning } from "../modules/PedestrianDeadReckoning";
-import { runOnJS, useSharedValue } from "react-native-reanimated";
 import { OccupancyMap } from "../modules/ParticleFilter";
 
 // Gestures
 import { GestureHandlerRootView, GestureDetector, Gesture } from "react-native-gesture-handler";
+// Reanimated
+import { runOnJS, useSharedValue } from "react-native-reanimated";
+
 
 const _freqUpdate = 20; // 20 ms (50 hz) sample period (frequency) from motion sensors
-
 const accelerometerData = new SensorData();
 const accelerationWithoutGravity = new SensorData();
 const gyroscopeData = new SensorData();
-
 const pdr = new PedestrianDeadReckoning();
-
 const LOCATION_DATA = [];
 let ROOM_SWITCH = []
 TIMESTAMP = Date.now();
 let tmpT;
-
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 // MAP
 let occMap = new OccupancyMap();
-//occMap.initParticles();
+
 const svg = Skia.SVG.MakeFromString(
     `<svg data-name="1-Arrow Up" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
     <path d="m26.71 10.29-10-10a1 1 0 0 0-1.41 0l-10 10 1.41 1.41L15 3.41V32h2V3.41l8.29 8.29z"/>

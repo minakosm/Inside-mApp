@@ -14,10 +14,8 @@
   Unpublished Work © 2024 Minas Kosmidis
 */
 
-import React, { Component, useEffect, useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, ViewBase, TouchableOpacity} from 'react-native';
-import Button from './components/utils/Button';
+import React, { useState } from 'react';
+import { StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { RootSiblingParent } from 'react-native-root-siblings';
@@ -25,12 +23,7 @@ import { RootSiblingParent } from 'react-native-root-siblings';
 import AboutPage from './components/screens/About';
 import Navigation from './components/screens/Navigation';
 
-// Modules
-import DeadReckoningApp from './components/modules/DeadReckoning';
-import PDRApp from './components/modules/PDR';
-
 import * as FileSystem from 'expo-file-system';
-import * as DocumentPicker from 'expo-document-picker';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 const { StorageAccessFramework } = FileSystem;
 
