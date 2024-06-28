@@ -26,8 +26,8 @@ import AboutPage from './components/screens/About';
 import Navigation from './components/screens/Navigation';
 
 // Modules
-import DeadReckoningApp from './components/PDR/DeadReckoning';
-import PDRApp from './components/PDR/PDR';
+import DeadReckoningApp from './components/modules/DeadReckoning';
+import PDRApp from './components/modules/PDR';
 
 import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
@@ -45,7 +45,6 @@ function NavigationScreen() {
   const [mapInfo, setMapInfo] = useState(null);
   const [mapImg, setMapImg] = useState(null);
   return(
-
     <Navigation />
   )
 }

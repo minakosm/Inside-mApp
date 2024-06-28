@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, Component } from "react";
-import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollView, TextInput, TextInputComponent, SafeAreaView, ToastAndroid, } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { StyleSheet, Text, View, Dimensions, TouchableHighlight, Alert, ScrollView, TextInput, SafeAreaView, ToastAndroid, } from "react-native";
 
 // Import Canvas
 // import Canvas from "react-native-canvas";
-import { Canvas, Group, Circle, Skia, Rect, useImage, Image, ImageSVG, useImageAsTexture, loadData } from "@shopify/react-native-skia";
+import { Canvas, Group, Circle, Skia, useImage, Image, ImageSVG } from "@shopify/react-native-skia";
 // Import Sensor Related Libraries
 import { Gyroscope, DeviceMotion, Accelerometer} from "expo-sensors";
 import { SensorData } from "../utils/SensorData";
@@ -16,15 +16,13 @@ import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 const { StorageAccessFramework } = FileSystem;
 
-
 // Custom Modules 
-import { PedestrianDeadReckoning } from "../PDR/PedestrianDeadReckoning";
-import Animated, { interpolateColor, runOnJS, useAnimatedProps, useAnimatedReaction, useAnimatedRef, useAnimatedSensor, useSharedValue } from "react-native-reanimated";
-import { OccupancyMap, Particle } from "../PDR/ParticleFilter";
+import { PedestrianDeadReckoning } from "../modules/PedestrianDeadReckoning";
+import { runOnJS, useSharedValue } from "react-native-reanimated";
+import { OccupancyMap } from "../modules/ParticleFilter";
 
 // Gestures
 import { GestureHandlerRootView, GestureDetector, Gesture } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
 
 const _freqUpdate = 20; // 20 ms (50 hz) sample period (frequency) from motion sensors
 
@@ -40,8 +38,6 @@ TIMESTAMP = Date.now();
 let tmpT;
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
-const PATH = Skia.Path.Make();
-PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 // MAP
 let occMap = new OccupancyMap();
 //occMap.initParticles();
@@ -203,8 +199,6 @@ export default Navigation = (props) => {
         gyroscopeData.clear();
 
         userTapPos.value = {x:null, y:null};
-        PATH.reset();
-        PATH.rMoveTo(SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 
         LOCATION_DATA.splice(0, LOCATION_DATA.length);
         ROOM_SWITCH.splice(0,ROOM_SWITCH.length);
@@ -253,7 +247,6 @@ export default Navigation = (props) => {
                     r: occMap.estimatedPos.room,
                     t: tmpT, 
                 })
-                console.log(`LOCDATA`)
                 console.log(LOCATION_DATA);
                 setNewParticleUpdate({step: pdrResults.stepLength, turn: pdrResults.deltaTh})
             });
@@ -366,7 +359,6 @@ export default Navigation = (props) => {
             r: occMap.estimatedPos.room,
             t: tmpT, 
         })
-        console.log(`LOCDATA`)
         console.log(LOCATION_DATA.at(-1));
         setNewParticleUpdate({step: 0.6, turn: newParticleUpdate.turn})
         
@@ -402,10 +394,7 @@ export default Navigation = (props) => {
     const switchRoom = () => {
         ROOM_SWITCH.push(LOCATION_DATA.length);
         ToastAndroid.show('Room Change Noted!', ToastAndroid.SHORT);
-        console.log(`switch = ${JSON.stringify(ROOM_SWITCH)}`)
         ROOM_SWITCH = ROOM_SWITCH.filter((v, i) => ROOM_SWITCH.indexOf(v) === i);
-        console.log(`switch = ${JSON.stringify(ROOM_SWITCH)}`)
-        console.log(`----`)
     }
 
     function welcomeScreen() {
