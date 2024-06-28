@@ -462,9 +462,9 @@ export default Navigation = (props) => {
             <TouchableHighlight onPress={_clear} style={styles.button}>
                 <Text style={styles.buttonText}>{'CLEAR'}</Text>
             </TouchableHighlight>
-            <TouchableHighlight onPress={playback} style={styles.button}>
+            {/* <TouchableHighlight onPress={playback} style={styles.button}>
                 <Text style={styles.buttonText}>{"PLAYBACK"}</Text>
-            </TouchableHighlight>
+            </TouchableHighlight> */}
             </View>
 
             <View style={{marginVertical:10}}>

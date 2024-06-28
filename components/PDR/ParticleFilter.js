@@ -386,7 +386,7 @@ class OccupancyMap {
         let Neff = 1/sumSq;
 
         console.log(`Neff = ${Neff}`);
-        if(Neff < N/3) {
+        if(Neff < N/2) {
             let particleIndexes = this.systematicResample(this.particles);
             // Create Deep Copies of each Resampled Particle
             let newParticles = [];

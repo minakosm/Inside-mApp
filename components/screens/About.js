@@ -22,23 +22,15 @@ export default class AboutPage extends React.Component {
                             color: '#ddd',
                             marginHorizontal: 20
                         }}>
-                            Sensa is an application created by the Intelligent Systems and Software Engineering Labgroup (ISSEL), which belongs to the Information Processing Laboratory (IPL) of the Department of Electrical and Computer Engineering at the Aristotle University of Thessaloniki.
+                            Inside-mApp is an application created for the purposes of the thesis with title "Extractoion of Room Classification Data, using Mobile Phone Sensors" given by the Intelligent Systems and Software Engineering Labgroup (ISSEL), which belongs to the Information Processing Laboratory (IPL) of the Department of Electrical and Computer Engineering at the Aristotle University of Thessaloniki.
                         </Text>
-                        <View style={{ marginTop: 10 }} />
+                        {/* <View style={{ marginTop: 10 }} />
                         <Text style={{
                             textAlign: 'justify',
                             color: '#ddd',
                             marginHorizontal: 20
                         }}>
-                            Sensa uses Cenote for storage of data, a Big Data Management System (BDMS) for event processing and analytics.
-                        </Text>
-                        <View style={{ marginTop: 10 }} />
-                        {/* <Text style={{
-                            textAlign: 'justify',
-                            color: '#ddd',
-                            marginHorizontal: 20
-                        }}>
-                            Sensa is free to use, nevertheless, if you use it to conduct research, please cite the following paper:
+                            Inside-mApp is free to use, nevertheless, if you use it to conduct research, please cite the following paper:
                         </Text>
                         <View style={{ marginTop: 10 }} />
                         <Text style={{
@@ -57,14 +49,14 @@ export default class AboutPage extends React.Component {
                                     style={styles.buttonText}
                                 >ISSEL</Text>
                             </TouchableHighlight>
-                            <TouchableHighlight
+                            {/* <TouchableHighlight
                                 style={styles.button}
                                 onPress={() => { Linking.openURL('https://cenote.sidero.services/') }}
                             >
                                 <Text
                                     style={styles.buttonText}
                                 >Cenote</Text>
-                            </TouchableHighlight>
+                            </TouchableHighlight> */}
                         </View>
                     </View>
                 </ScrollView>
