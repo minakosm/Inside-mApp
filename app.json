@@ -1,13 +1,14 @@
 {
   "expo": {
     "name": "Inside-mApp",
-    "slug": "Inside-mApp",
+    "slug": "inside-mApp",
+    "description": "This app was developed in the context of my thesis with title 'Implementation of an indoor positioning system for area classification, using mobile phone sensors'",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/insideMappIcon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/insideMappSplash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },

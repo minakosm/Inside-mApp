@@ -12,7 +12,7 @@ export default class AboutPage extends React.Component {
             <LinearGradient colors={['#081f41','#00f9ef']} style={styles.externalContainer}>
                 <View style={{ marginTop: "50%" }} />
                 <View style={styles.container}>
-                    <Image source={require('./../../assets/Inside-mApp_icon.png')} style={styles.logo} resizeMode="contain" />
+                    <Image source={require('./../../assets/insideMappIcon.png')} style={styles.logo} resizeMode="contain" />
                 </View>
                 <View style={{ marginTop: 10 }} />
                 <ScrollView>
