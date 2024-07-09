@@ -53,7 +53,7 @@ rough floor plan of a domestic space, created in `Matlab` enviroment.
 ## SetUp and Run
 
 ### Developer Mode
-After installing Node.js and npm run on the root of the project `npm i expo` to install the expo client. 
-Then run `npx expo start` to open a local server that runs the application. Now you are ready to run the application in your device by either scanning the QR code shown in your terminal or by selecting the project from the Expo Go app.
+After installing Node.js and npm run `npm i expo` to install the expo client. 
+Then on the root directory of the project, run `npx expo start` to open a local server that runs the application. Now you are ready to run the application in your device by either scanning the QR code shown in your terminal or by selecting the project from the Expo Go app.
 
 [![runs with Expo Go](https://img.shields.io/badge/Runs%20with%20Expo%20Go-4630EB.svg?style=flat-square&logo=EXPO&labelColor=f3f3f3&logoColor=000)](https://expo.dev/client)
