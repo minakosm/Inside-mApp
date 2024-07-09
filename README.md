@@ -10,7 +10,7 @@ Inside-mApp is an offline, autonomous and automated smartphone application that 
 The Pedestrian Dead Reckoning (PDR) navigation module is based on a  method that consists of submodules for Step Detection, Step Length Estimation and User Rotation Angle Estimation. 
 
 For the Step Detection submodule, a combination of zero-crossing and peak detection method is used in order to match two consecutive vertical acceleration peaks (a maximum and a minimum) so their values can be propagated to the Step Length Estimation submodule.
-Then, the length of each detected step can be calculated via a biomechanic formula: $$l = K\sqrt[4]{a_{max} = a_{min}}$$ where $K$ is a variable for unit measurement conversion which needs calibration for each different user. 
+Then, the length of each detected step can be calculated via a biomechanic formula: $$l = K\sqrt[4]{a_{max} - a_{min}}$$ where $K$ is a variable for unit measurement conversion which needs calibration for each different user. 
 
 In parallel to Step Detection and Step Length Estimation, the User Rotation Estimation submodule is running, that is responsible for the detection of user rotation and the calculation of the rotation angle. The angle is calculated via 
 a custom formula $$\theta = \frac{1}{2}(\omega_{peak} + m_{\omega})t_{turn}$$ where $\theta$ is the calculated rotation angle, $\omega_{peak}$ is the maximum (or minimum) value of the angular velocity for the time period of the detected rotation,
