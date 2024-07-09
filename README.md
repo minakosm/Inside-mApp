@@ -41,12 +41,12 @@ rough floor plan of a domestic space, created in `Matlab` enviroment.
 >
 > | Data Field | Description |
 >|-----:|---------------|
->|binaryMap |occupancy grid matrix|
->|size      |MxN matrix size      |
->|resolution|cells/meters         |
->|imageName |filename string      |
->|extension |.png                 |
-> |rooms    |room info            |
+>|binaryMap |occupancy grid matrix |
+>|size      |MxN grid matrix size  |
+>|resolution|cells/meters          |
+>|imageName |filename string       |
+>|extension |.png                  |
+> |rooms    |room info             |
 
 
 ## Prerequisites 
