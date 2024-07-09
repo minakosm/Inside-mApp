@@ -18,7 +18,11 @@ $m_\omega$ is the mean angular velocity of the rotation time period and $t_{turn
 
 ### Particle Filter Localization
 The localization module is based on the implementation of a Particle Filter with each particle representing a possible spatial state of the user. 
-The filter takes as inputs the length of each detected step and the rotation angle of each detected turn from the navigation module and propagates each particle based on these inputs. In addition to 
+The filter takes as inputs the length of each detected step and the rotation angle of each detected turn from the navigation module and propagates each particle based on these inputs. In order to spread the particles in the space of interest,
+we also introduce a gaussian random error to the input values. The step length error standar deviation is set to $0.2m$ whilst for the rotation angle is set to $5^\circ$.
+
+The particle weight distribution depends from their distance from objects-walls. If a particle is near an obstacle then a new weight is calculated that is a function of the freedom of movement of the particle (if it has many obstacles around it or not) and the distance from aforementioned objects.
+
 #### Maps
 In order for the localization algorithm to work, a map of the space of interest must be provided. In the context of this particular thesis there were two occupancy grid maps availiable: A map of the Computer Architecture Lab in the Department and a 
 rough floor plan of a domestic space, created in `Matlab` enviroment.
@@ -32,7 +36,7 @@ rough floor plan of a domestic space, created in `Matlab` enviroment.
 </picture>
 
 > [!NOTE]
-> In order to add and use an new occupancy grid map, a `.json` file with space-room information must be provided in the device's filesystem and a `.png` image of the grid with the same name in the `assets/maps` folder (see [assets](https://github.com/minakosm/Inside-mApp/blob/master/assets/maps). The json fields are described by the table below
+> In order to add and use an new occupancy grid map, a `.json` file with space-room information must be provided in the device's filesystem and a `.png` image of the grid with the same name in the `assets/maps` folder (see [assets](https://github.com/minakosm/Inside-mApp/blob/master/assets/maps)). The json fields are described by the table below
 >
 > | Data Field | Description |
 >|-----:|---------------|
@@ -47,5 +51,9 @@ rough floor plan of a domestic space, created in `Matlab` enviroment.
 + Node.js and npm ([installation guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm))
 + ExpoGo in your mobile device ([installation](https://expo.dev/go))
 ## SetUp and Run
+
+### Developer Mode
+After installing Node.js and npm run on the root of the project `npm i expo` to install the expo client. 
+Then run `npx expo start` to open a local server that runs the application. Now you are ready to run the application in your device by either scanning the QR code shown in your terminal or by selecting the project from the Expo Go app.
 
 [![runs with Expo Go](https://img.shields.io/badge/Runs%20with%20Expo%20Go-4630EB.svg?style=flat-square&logo=EXPO&labelColor=f3f3f3&logoColor=000)](https://expo.dev/client)
