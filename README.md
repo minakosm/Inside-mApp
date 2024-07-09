@@ -35,6 +35,7 @@ rough floor plan of a domestic space, created in `Matlab` enviroment.
 <img src="https://github.com/minakosm/Inside-mApp/blob/master/assets/maps/livingRoomMap.png" width="350" height="350" align='right'>
 </picture>
 
+
 > [!NOTE]
 > In order to add and use an new occupancy grid map, a `.json` file with space-room information must be provided in the device's filesystem and a `.png` image of the grid with the same name in the `assets/maps` folder (see [assets](https://github.com/minakosm/Inside-mApp/blob/master/assets/maps)). The json fields are described by the table below
 >
@@ -46,6 +47,7 @@ rough floor plan of a domestic space, created in `Matlab` enviroment.
 >|imageName |filename string      |
 >|extension |.png                 |
 > |rooms    |room info            |
+
 
 ## Prerequisites 
 + Node.js and npm ([installation guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm))
