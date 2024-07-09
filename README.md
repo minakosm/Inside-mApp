@@ -58,7 +58,7 @@ Then on the root directory of the project, run `npx expo start` to open a local 
 [![runs with Expo Go](https://img.shields.io/badge/Runs%20with%20Expo%20Go-4630EB.svg?style=flat-square&logo=EXPO&labelColor=f3f3f3&logoColor=000)](https://expo.dev/client)
 
 ### Usage
-The HomePage consists of a button that enables the user to pick a map from the stored `.json` files in their device's filesystem manager.
+The HomeScreen consists of a button that enables the user to pick a map from the stored `.json` files in their device's filesystem manager.
 The starting position in the space of interest, can be defined by double-tapping on the map window. After that, the user direction can be initialized with a pan gesture on the map window shown in the app. Now, before a navigation session starts, the user must hold their devicee in front of them and press the `START/STOP` button on the top of the screen.
 
 Other availiable funfunctions are: 
@@ -68,7 +68,7 @@ Other availiable funfunctions are:
 + **+STEP**: Can move all particles a step forward with constant length and adds it in the Step History data.
 + **$\pm45^\circ$**: Rotates particles $45^\circ$ to the left ($+$) or to the right ($-$).
 + **RoomChange**: For Debugging and Experimenting Purposes. Button to keep track ground truth room changes.
-+ **HomePage**: Returns to the HomePage where the user can pick another map.
++ **HomeScreen**: Returns to the HomePage where the user can pick another map.
 
 In addition the user can change on the fly two basic parameters of the Particle Filter: 
 + **N**: Number of particles, and
