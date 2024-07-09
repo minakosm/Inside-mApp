@@ -9,18 +9,18 @@ export default class AboutPage extends React.Component {
 
     render() {
         return (
-            <LinearGradient colors={['#3f4733', '#081f41']} style={styles.externalContainer}>
+            <LinearGradient colors={['#081f41','#00f9ef']} style={styles.externalContainer}>
                 <View style={{ marginTop: "50%" }} />
                 <View style={styles.container}>
-                    <Image source={require('./../../assets/favicon.png')} style={styles.logo} resizeMode="contain" />
+                    <Image source={require('./../../assets/Inside-mApp_icon.png')} style={styles.logo} resizeMode="contain" />
                 </View>
                 <View style={{ marginTop: 10 }} />
                 <ScrollView>
                     <View>
                         <Text style={{
                             textAlign: 'justify',
-                            color: '#ddd',
-                            marginHorizontal: 20
+                            color: '#000',
+                            marginHorizontal: 20,
                         }}>
                             Inside-mApp is an application created for the purposes of the thesis with title "Extractoion of Room Classification Data, using Mobile Phone Sensors" given by the Intelligent Systems and Software Engineering Labgroup (ISSEL), which belongs to the Information Processing Laboratory (IPL) of the Department of Electrical and Computer Engineering at the Aristotle University of Thessaloniki.
                         </Text>
@@ -49,14 +49,14 @@ export default class AboutPage extends React.Component {
                                     style={styles.buttonText}
                                 >ISSEL</Text>
                             </TouchableHighlight>
-                            {/* <TouchableHighlight
+                            <TouchableHighlight
                                 style={styles.button}
                                 onPress={() => { Linking.openURL('https://cenote.sidero.services/') }}
                             >
                                 <Text
                                     style={styles.buttonText}
-                                >Cenote</Text>
-                            </TouchableHighlight> */}
+                                >Thesis PDF</Text>
+                            </TouchableHighlight>
                         </View>
                     </View>
                 </ScrollView>
