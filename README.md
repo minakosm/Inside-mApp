@@ -24,16 +24,13 @@ we also introduce a gaussian random error to the input values. The step length e
 The particle weight distribution depends from their distance from objects-walls. If a particle is near an obstacle then a new weight is calculated that is a function of the freedom of movement of the particle (if it has many obstacles around it or not) and the distance from aforementioned objects.
 
 #### Maps
-In order for the localization algorithm to work, a map of the space of interest must be provided. In the context of this particular thesis there were two occupancy grid maps availiable: A map of the Computer Architecture Lab in the Department and a 
-rough floor plan of a domestic space, created in `Matlab` enviroment.
+In order for the localization algorithm to work, a map of the space of interest must be provided. In the context of this particular thesis there were two occupancy grid maps availiable: A map of the Computer Architecture Lab in the Department (left) and a 
+rough floor plan of a domestic space created in `Matlab` enviroment (right).
 
-<picture>
-<img src="https://github.com/minakosm/Inside-mApp/blob/master/assets/maps/labMap.png" width="350" height="350">
-</picture>
-
-<picture>
-<img src="https://github.com/minakosm/Inside-mApp/blob/master/assets/maps/livingRoomMap.png" width="350" height="350" align='right'>
-</picture>
+<p align="middle">
+  <img src="https://github.com/minakosm/Inside-mApp/blob/master/assets/maps/labMap.png" width="400" height="400" >
+   <img src="https://github.com/minakosm/Inside-mApp/blob/master/assets/maps/livingRoomMap.png" width="400" height="400">
+</p>
 
 
 > [!NOTE]
