@@ -4,6 +4,8 @@ Inside-mApp is an indoor positioning mobile phone application designed for my th
 
 This repository holds the code developed in the context of the implementation of the application
 
+[![runs with Expo Go](https://img.shields.io/badge/Runs%20with%20Expo%20Go-4630EB.svg?style=flat-square&logo=EXPO&labelColor=f3f3f3&logoColor=000)](https://expo.dev/client)
+
 ## Description
 Inside-mApp is an offline, autonomous and automated smartphone application that enables the user to navigate within his area of interest, by holding the mobile device in front of them. This application collects data from the accelerometer and gyroscope, processes it and displays the user's position within the corresponding map on the screen in real time. The functional structure of the application is divided into two main parts, the navigation part and the localization part. The navigation function is based on a PDR method for recognizing the user's steps and rotation. In the localization part, a Particle Filter which utilizes the indoor space information from the corresponding occupancy map is used which combines the spatial data with the results of the navigation component in order to calculate the final estimated pose of the user with respect to the space of interest
 ### PDR Navigation
@@ -54,8 +56,6 @@ rough floor plan of a domestic space created in `Matlab` enviroment (right).
 ### Developer Mode
 After installing Node.js and npm run `npm i expo` to install the expo client. 
 Then on the root directory of the project, run `npx expo start` to open a local server that runs the application. Now you are ready to run the application in your device by either scanning the QR code shown in your terminal or by selecting the project from the Expo Go app.
-
-[![runs with Expo Go](https://img.shields.io/badge/Runs%20with%20Expo%20Go-4630EB.svg?style=flat-square&logo=EXPO&labelColor=f3f3f3&logoColor=000)](https://expo.dev/client)
 
 ### Usage
 The HomeScreen consists of a button that enables the user to pick a map from the stored `.json` files in their device's filesystem manager.
