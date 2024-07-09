@@ -51,7 +51,7 @@ export default class AboutPage extends React.Component {
                             </TouchableHighlight>
                             <TouchableHighlight
                                 style={styles.button}
-                                onPress={() => { Linking.openURL('https://cenote.sidero.services/') }}
+                                onPress={() => { Linking.openURL('https://github.com/minakosm/Inside-mApp/tree/master/report') }}
                             >
                                 <Text
                                     style={styles.buttonText}
