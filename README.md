@@ -1,6 +1,6 @@
 # Inside-mApp 
 Inside-mApp is an indoor positioning mobile phone application designed for my thesis with title "Implementation of an indoor positioning system for area classification, using mobile phone sensors" for my Electrical and Computer Engineering studies in the Aristotle University of Thessaloniki
-([pdf](https://github.com/minakosm/Inside-mApp/blob/master/report/Thesis%20Report.pdf) in greek)
+([pdf](https://ikee.lib.auth.gr/record/356543/?ln=el) in greek)
 
 This repository holds the code developed in the context of the implementation of the application
 
